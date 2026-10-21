@@ -415,6 +415,13 @@ const en = {
   autoExpiryHint: "Leave empty: expiry will be set to {date} automatically ({n}-day shelf life).",
   autoShort: "Auto: {date}",
   heardExpiry: "Heard expiry: “{text}”",
+  shelfLifeTitle: "Shelf life per product",
+  shelfLifeSub: "Set it once for goods without a printed date — every stock-in then gets its expiry date automatically.",
+  shelfLifeGuide: "Leave “Dated” for packaged goods (noodles, water, oil): enter their printed date at stock-in. Typical: bread 3–5 days, vegetables 3–7, fresh milk 5–7, eggs 21–30, local snacks 14–30.",
+  shelfLifeCount: "{n} with shelf life",
+  shelfLifeAuto: "auto expiry after {n} days",
+  shelfLifeDated: "date entered at stock-in",
+  shelfNone: "Dated",
 
   // errors & misc
   loading: "Loading…",
@@ -826,6 +833,13 @@ const my: Record<TextKey, string> = {
   autoExpiryHint: "ချန်ထားလျှင် သက်တမ်းကုန်ရက်ကို {date} ဟု အလိုအလျောက် သတ်မှတ်ပါမည် (သက်တမ်း {n} ရက်)။",
   autoShort: "အလိုအလျောက် - {date}",
   heardExpiry: "ကြားရသော သက်တမ်း - “{text}”",
+  shelfLifeTitle: "ပစ္စည်းအလိုက် သက်တမ်း",
+  shelfLifeSub: "ရက်စွဲ မပါသော ပစ္စည်းများအတွက် တစ်ခါ သတ်မှတ်ထားပါ — ပစ္စည်းသွင်းတိုင်း သက်တမ်းကုန်ရက်ကို အလိုအလျောက် တွက်ပေးပါမည်။",
+  shelfLifeGuide: "ထုပ်ပိုးပြီး ရက်စွဲပါသော ပစ္စည်းများ (ခေါက်ဆွဲ၊ ရေသန့်၊ ဆီ) ကို “ရက်စွဲပါ” ဟု ထားပါ — ပစ္စည်းသွင်းချိန်တွင် ရက်စွဲ ထည့်ပါ။ ခန့်မှန်း - ပေါင်မုန့် ၃–၅ ရက်၊ ဟင်းရွက် ၃–၇ ရက်၊ နွားနို့ ၅–၇ ရက်၊ ကြက်ဥ ၂၁–၃၀ ရက်၊ ဈေးမုန့် ၁၄–၃၀ ရက်။",
+  shelfLifeCount: "{n} ခု သတ်မှတ်ထား",
+  shelfLifeAuto: "{n} ရက်အကြာ အလိုအလျောက် ကုန်မည်",
+  shelfLifeDated: "ပစ္စည်းသွင်းချိန် ရက်စွဲ ထည့်ရန်",
+  shelfNone: "ရက်စွဲပါ",
 
   loading: "ဖွင့်နေသည်…",
   error: "လုပ်ဆောင်မှု မအောင်မြင်ပါ",

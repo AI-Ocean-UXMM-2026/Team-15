@@ -204,3 +204,14 @@ input.num{width:90px;min-height:36px;border:1px solid #dce6df;border-radius:7px;
 .chip.ghost{border-style:dashed;color:#87958d}
 .auto-expiry{display:block;color:#6b3fa0!important;font-size:10px;margin-top:4px}
 .heard-expiry{display:block;font-size:10px;color:#376fc0;margin:-4px 0 8px}
+
+/* shelf life settings */
+.shelf-list{max-height:460px;overflow:auto}
+.shelf-row{display:flex;align-items:center;gap:12px;padding:12px 21px;border-bottom:1px solid #edf1ee;flex-wrap:wrap}
+.shelf-row:last-child{border-bottom:0}
+.shelf-row b,.shelf-row small{display:block}
+.shelf-row b{font-size:12px}
+.shelf-row small{font-size:10px;color:#87958d;margin-top:3px}
+.shelf-row .quick-dates{margin-top:0}
+.shelf-row input.num{width:70px}
+@media(max-width:720px){.shelf-row{padding:12px}.shelf-row .grow{flex-basis:100%}}

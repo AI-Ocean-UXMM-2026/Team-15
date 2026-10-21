@@ -323,6 +323,7 @@ export function History() {
 }
 
 // ---------- settings ----------
+const SHELF_PRESETS = [3, 7, 30, 180];
 export function Settings() {
   const t = useT();
   const { user, warehouse, setWarehouse, request, notify, setError, data, load, logout } = useApp();
@@ -330,15 +331,24 @@ export function Settings() {
   const owner = user?.role === "OWNER";
   const [w, setW] = useState({ name: warehouse?.name || "", location: warehouse?.location || "", language: t.lang, expiryAlertDays: warehouse?.settings?.expiryAlertDays ?? 30, defaultLowStockThreshold: warehouse?.settings?.defaultLowStockThreshold ?? 5 });
   const [thresholds, setThresholds] = useState({});
+  const [shelfLives, setShelfLives] = useState({});
+  const [shelfFilter, setShelfFilter] = useState("");
   const [busy, setBusy] = useState(false);
+  const shelfOf = (p) => shelfLives[p.id] ?? (p.shelfLifeDays || 0);
+  const shelfRows = data.products.filter((p) => `${p.name} ${p.sku}`.toLowerCase().includes(shelfFilter.toLowerCase()));
 
   const save = async (e) => {
     e.preventDefault(); setBusy(true); setError("");
     try {
       const updated = await request("/v1/warehouse", { method: "PATCH", body: JSON.stringify({ name: w.name, location: w.location, language: w.language, settings: { expiryAlertDays: Number(w.expiryAlertDays), defaultLowStockThreshold: Number(w.defaultLowStockThreshold) } }) });
-      const items = Object.entries(thresholds).map(([id, v]) => ({ id, lowStockThreshold: Number(v) }));
+      const ids = new Set([...Object.keys(thresholds), ...Object.keys(shelfLives)]);
+      const items = [...ids].map((id) => ({
+        id,
+        ...(thresholds[id] !== undefined ? { lowStockThreshold: Number(thresholds[id]) } : {}),
+        ...(shelfLives[id] !== undefined ? { shelfLifeDays: Number(shelfLives[id]) || 0 } : {})
+      }));
       if (items.length) await request("/v1/products/thresholds", { method: "PATCH", body: JSON.stringify({ items }) });
-      setWarehouse(updated); setThresholds({}); setLang(updated.language); notify(t("settingsSaved")); await load();
+      setWarehouse(updated); setThresholds({}); setShelfLives({}); setLang(updated.language); notify(t("settingsSaved")); await load();
     } catch (err) { setError(t.err(err)); } finally { setBusy(false); }
   };
 
@@ -354,6 +364,24 @@ export function Settings() {
       <div className="tablewrap threshold-list">{data.products.map((p) => <div className="settingsrow" key={p.id}><span><b>{p.name}</b> <small>{t.num(p.quantity)} {p.unit}</small></span>
         <input className="num" type="number" min={0} step={1} value={thresholds[p.id] ?? p.lowStockThreshold} onChange={(e) => setThresholds({ ...thresholds, [p.id]: e.target.value })} /></div>)}
         {!data.products.length && <div className="empty">{t("noProducts")}</div>}</div>
+    </div>
+    <div className="panel"><div className="panelhead"><div><h3>{t("shelfLifeTitle")}</h3><p>{t("shelfLifeSub")}</p></div><span className="badge violet-badge">{t("shelfLifeCount", { n: data.products.filter((p) => shelfOf(p) > 0).length })}</span></div>
+      <div className="hint pad-x">{t("shelfLifeGuide")}</div>
+      <div className="tabletools"><div className="searchbox"><Search size={16} /><input value={shelfFilter} onChange={(e) => setShelfFilter(e.target.value)} placeholder={t("search")} /></div></div>
+      <div className="tablewrap shelf-list">{shelfRows.map((p) => {
+        const v = Number(shelfOf(p)) || 0;
+        const setV = (n) => setShelfLives({ ...shelfLives, [p.id]: n });
+        return <div className="shelf-row" key={p.id}>
+          <span className="grow"><b>{p.name}</b><small>{t.cat(p.category)} · {v > 0 ? t("shelfLifeAuto", { n: v }) : t("shelfLifeDated")}</small></span>
+          <div className="quick-dates">
+            <button type="button" className={v === 0 ? "chip active" : "chip"} onClick={() => setV(0)}>{t("shelfNone")}</button>
+            {SHELF_PRESETS.map((d) => <button type="button" key={d} className={v === d ? "chip active" : "chip"} onClick={() => setV(d)}>{t("shelfLifeValue", { n: d })}</button>)}
+          </div>
+          <input className="num" type="number" min={0} max={3650} step={1} value={shelfOf(p) || ""} placeholder="0" aria-label={t("shelfLife")} onChange={(e) => setV(e.target.value)} />
+        </div>;
+      })}
+        {!shelfRows.length && <div className="empty">{t("noProducts")}</div>}</div>
+      <div className="modalfoot"><button className="primary" disabled={busy}>{busy ? t("saving") : t("saveSettings")}</button></div>
     </div>
     <div className="panel"><div className="panelhead"><div><h3>{t("warehouseSection")}</h3><p>{t("settingsSub")}</p></div></div>
       <div className="pad">

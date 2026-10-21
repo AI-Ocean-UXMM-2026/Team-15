@@ -353,13 +353,25 @@ app.get("/v1/products/lookup/:code", async (req, res) => {
   res.json({ found: Boolean(product), product: productOut(product) || null, code });
 });
 
+// Bulk edit from Settings: each item may carry a low-stock threshold, a shelf life (days), or both.
 app.patch("/v1/products/thresholds", async (req, res) => {
   const items = Array.isArray(req.body?.items) ? req.body.items.slice(0, 1000) : [];
   const ops = [];
   for (const it of items) {
-    const _id = oid(String(it.id || "")), threshold = cleanInt(it.lowStockThreshold);
-    if (!_id || threshold === null) fail(400, "VALIDATION_ERROR", "Each threshold must be a non-negative whole number.");
-    ops.push({ updateOne: { filter: { _id, warehouseId: req.warehouse._id }, update: { $set: { lowStockThreshold: threshold, updatedAt: new Date() } } } });
+    const _id = oid(String(it.id || ""));
+    if (!_id) fail(400, "VALIDATION_ERROR", "Unknown product.");
+    const set = { updatedAt: new Date() };
+    if (it.lowStockThreshold !== undefined) {
+      const threshold = cleanInt(it.lowStockThreshold);
+      if (threshold === null) fail(400, "VALIDATION_ERROR", "Each threshold must be a non-negative whole number.");
+      set.lowStockThreshold = threshold;
+    }
+    if (it.shelfLifeDays !== undefined) {
+      const days = it.shelfLifeDays === "" || it.shelfLifeDays === null ? 0 : cleanInt(it.shelfLifeDays);
+      if (days === null || days > 3650) fail(400, "VALIDATION_ERROR", "Shelf life must be between 0 and 3650 days.");
+      set.shelfLifeDays = days;
+    }
+    ops.push({ updateOne: { filter: { _id, warehouseId: req.warehouse._id }, update: { $set: set } } });
   }
   if (ops.length) await req.db.collection("products").bulkWrite(ops);
   res.json({ updated: ops.length });

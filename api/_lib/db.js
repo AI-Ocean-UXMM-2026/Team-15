@@ -104,15 +104,19 @@ const DEMO_PRODUCTS = [
   { name: "Cooking Oil 1L", sku: "890100000006", category: "Food & Beverage", unit: "bottles", supplier: "Shwe Pyi Supplier", supplierPhone: "09 420 000 222", lowStockThreshold: 10, quantity: 30, perDay: 3, expiryIn: 240 },
   { name: "Laundry Powder 1kg", sku: "890100000004", category: "Household", unit: "bags", supplier: "Mandalay Wholesale", supplierPhone: "09 420 000 444", lowStockThreshold: 8, quantity: 0, perDay: 1 },
   { name: "Toothpaste 100g", sku: "890100000005", category: "Personal Care", unit: "tubes", supplier: "Golden Myanmar Trading", supplierPhone: "09 420 000 111", lowStockThreshold: 10, quantity: 28, perDay: 1 },
-  { name: "Rice 5kg", sku: "890100000007", category: "Food & Beverage", unit: "bags", supplier: "Ayeyarwady Rice Mill", supplierPhone: "09 420 000 555", lowStockThreshold: 10, quantity: 50, perDay: 0.5 }
+  { name: "Rice 5kg", sku: "890100000007", category: "Food & Beverage", unit: "bags", supplier: "Ayeyarwady Rice Mill", supplierPhone: "09 420 000 555", lowStockThreshold: 10, quantity: 50, perDay: 0.5, expiryIn: 165, shelfLifeDays: 180 },
+  // Undated local goods: their expiry comes from shelf life, not a printed date.
+  { name: "Eggs (30 tray)", sku: "890100000008", category: "Food & Beverage", unit: "trays", supplier: "Hlegu Poultry Farm", supplierPhone: "09 420 000 666", lowStockThreshold: 5, quantity: 14, perDay: 2, expiryIn: 6, shelfLifeDays: 21 },
+  { name: "Fresh Tomatoes", sku: "890100000009", category: "Agriculture", unit: "kg", supplier: "Thiri Mingalar Market", supplierPhone: "09 420 000 777", lowStockThreshold: 10, quantity: 18, perDay: 4, expiryIn: 2, shelfLifeDays: 5 }
 ];
 const OUT_REASONS = ["Shop delivery", "Wholesale order", "Market stall", "Customer order"];
 
 /** Creates the demo products with a consistent 30-day history: opening stock, one restock, daily ship-outs. */
-export async function seedDemoStock(db, { warehouseId, userId, userName }) {
+export async function seedDemoStock(db, { warehouseId, userId, userName }, only) {
   const day = 86_400_000;
   const start = Date.now() - 30 * day;
   for (const [k, s] of DEMO_PRODUCTS.entries()) {
+    if (only && !only.includes(s.sku)) continue;
     const productId = new ObjectId();
     // Deterministic day-to-day variation (60%–140% of the average) so charts look real but reproducible.
     const outs = Array.from({ length: 30 }, (_, i) => Math.round(s.perDay * (0.6 + 0.8 * (((i * 7 + k * 13) % 10) / 10))));
@@ -146,6 +150,26 @@ export async function seedDemoStock(db, { warehouseId, userId, userName }) {
     }
     await db.collection("movements").insertMany(moves);
   }
+}
+
+/**
+ * Non-destructive demo update: sets shelf life on existing demo products and adds any demo
+ * products that are missing (with their history). Nothing the user entered is removed.
+ */
+export async function ensureDemoProducts(db) {
+  const user = await db.collection("users").findOne({ email: DEMO.email });
+  if (!user) return { updated: 0, added: [] };
+  const existing = await db.collection("products").find({ warehouseId: user.warehouseId, archived: false }, { projection: { sku: 1 } }).toArray();
+  const have = new Set(existing.map((p) => p.sku));
+  let updated = 0;
+  for (const s of DEMO_PRODUCTS) {
+    if (!have.has(s.sku)) continue;
+    const r = await db.collection("products").updateOne({ warehouseId: user.warehouseId, sku: s.sku }, { $set: { shelfLifeDays: s.shelfLifeDays || 0 } });
+    updated += r.modifiedCount;
+  }
+  const added = DEMO_PRODUCTS.filter((s) => !have.has(s.sku)).map((s) => s.sku);
+  if (added.length) await seedDemoStock(db, { warehouseId: user.warehouseId, userId: user._id, userName: user.name }, added);
+  return { updated, added };
 }
 
 /** Wipes and rebuilds only the demo account's stock (used by api/scripts/reset-demo.js). */
