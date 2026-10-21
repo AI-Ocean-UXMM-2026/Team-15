@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { X, ArrowDownToLine, ArrowUpFromLine, Truck, Pencil, Archive, Package, Sparkles, QrCode } from "lucide-react";
-import { useT, useApp, StatusBadge, expiryLabel, runOutLabel } from "../lib.jsx";
+import { X, ArrowDownToLine, ArrowUpFromLine, Truck, Pencil, Archive, Package, Sparkles, QrCode, Tag } from "lucide-react";
+import { useT, useApp, StatusBadge, expiryLabel, runOutLabel, CATEGORIES } from "../lib.jsx";
+import OrderStatusSelect from "./OrderStatusSelect.jsx";
 
 export default function ProductDetail({ id, onClose }) {
   const t = useT();
@@ -8,9 +9,18 @@ export default function ProductDetail({ id, onClose }) {
   const [p, setP] = useState(null);
   const [photo, setPhoto] = useState(0);
 
-  useEffect(() => {
-    request(`/v1/products/${id}`).then(setP).catch((e) => { setError(t.err(e)); onClose(); });
-  }, [id]);
+  const [editCat, setEditCat] = useState(false);
+  const refresh = () => request(`/v1/products/${id}`).then(setP).catch((e) => { setError(t.err(e)); onClose(); });
+  useEffect(() => { refresh(); }, [id]);
+
+  const saveCategory = async (category) => {
+    setEditCat(false);
+    if (category === p.category) return;
+    try {
+      await request(`/v1/products/${id}`, { method: "PATCH", body: JSON.stringify({ category }) });
+      notify(t("productUpdated")); await refresh(); load();
+    } catch (e) { setError(t.err(e)); }
+  };
 
   const go = (page) => { setPrefill({ productId: id }); onClose(); setPage(page); };
   const archive = async () => {
@@ -28,7 +38,14 @@ export default function ProductDetail({ id, onClose }) {
           {p.photos?.length ? <><img src={p.photos[photo]} alt={p.name} />{p.photos.length > 1 && <div className="thumbs">{p.photos.map((src, i) => <button key={i} className={i === photo ? "active" : ""} onClick={() => setPhoto(i)}><img src={src} alt="" /></button>)}</div>}</>
             : <div className="nophoto"><Package size={30} /><small>{t("noPhotos")}</small></div>}
         </div>
-        <div className="detail-qty"><div><small>{t("onHand")}</small><strong>{t.num(p.quantity)} <span>{p.unit}</span></strong></div><StatusBadge product={p} /></div>
+        <div className="detail-qty"><div><small>{t("onHand")}</small><strong>{t.num(p.quantity)} <span>{p.unit}</span></strong></div>
+          <div className="row-gap"><StatusBadge product={p} />
+            {editCat
+              ? <span className="cat-edit"><select autoFocus defaultValue={p.category} onChange={(e) => saveCategory(e.target.value)} onBlur={() => setEditCat(false)}>{CATEGORIES.map((c) => <option key={c} value={c}>{t.cat(c)}</option>)}</select></span>
+              : <button type="button" className="cat-chip" title={t("changeCategory")} onClick={() => setEditCat(true)}><Tag size={12} />{t.cat(p.category)}</button>}
+          </div>
+        </div>
+        <OrderStatusSelect product={p} order={p.activeReorder} onReorder={() => { onClose(); openReorder(p); }} onChanged={refresh} />
         {p.dailyUsage > 0 && <div className={`forecast-card ${p.daysLeft <= 7 ? "urgent" : ""}`}>
           <Sparkles size={18} />
           <div><b>{runOutLabel(t, p)}</b><small>{t("usagePerDay", { n: p.dailyUsage, unit: p.unit })}{p.suggestedOrder > 0 ? ` · ${t("suggestOrder", { n: p.suggestedOrder, unit: p.unit })}` : ""}</small></div>
@@ -36,13 +53,12 @@ export default function ProductDetail({ id, onClose }) {
         {p.description && <p className="detail-desc">{p.description}</p>}
         {row(t("barcode"), p.barcode)}
         {row(t("sku"), p.sku)}
-        {row(t("category"), t.cat(p.category))}
         {row(t("fdaCode"), p.fdaCode)}
         {row(t("threshold"), t.num(p.lowStockThreshold))}
         {p.shelfLifeDays > 0 && row(t("shelfLife"), t("shelfLifeValue", { n: p.shelfLifeDays }))}
         {row(t("supplier"), [p.supplier, p.supplierPhone, p.supplierEmail].filter(Boolean).join(" · "))}
         {row(t("remarks"), p.remarks)}
-        {p.activeReorder && row(t("supplierOrder"), `${t(`status_${p.activeReorder.status}`)} · ${t.num(p.activeReorder.quantity)} ${p.unit}`)}
+        {p.activeReorder && row(t("supplierOrder"), `${t.num(p.activeReorder.quantity)} ${p.unit} · ${p.activeReorder.supplier || "—"}`)}
         <h4 className="section-title">{t("batches")}</h4>
         {p.batches?.filter((b) => b.expiryDate).length ? p.batches.filter((b) => b.expiryDate).map((b) => <div className="settingsrow" key={b.id}><span>{t.date(b.expiryDate)}{b.lotNumber ? ` · ${b.lotNumber}` : ""}</span><b>{t.num(b.quantity)} {p.unit} · {expiryLabel(t, b.expiryDate)}</b></div>) : <div className="empty small">{t("noBatches")}</div>}
         <div className="detail-actions">

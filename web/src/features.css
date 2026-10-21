@@ -215,3 +215,43 @@ input.num{width:90px;min-height:36px;border:1px solid #dce6df;border-radius:7px;
 .shelf-row .quick-dates{margin-top:0}
 .shelf-row input.num{width:70px}
 @media(max-width:720px){.shelf-row{padding:12px}.shelf-row .grow{flex-basis:100%}}
+
+/* Designer review (v3.1): tighter frame, fixed sidebar, greeting, add sheet, status dropdown */
+@media(min-width:721px){
+  .sidebar{position:sticky;top:0;height:100vh;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
+  .content{padding:16px 20px 32px}
+  .topbar{height:72px;padding:0 20px}
+  .content>.panel:first-child,.content>.welcome-row:first-child{margin-top:0}
+  .panelhead{padding:14px 18px}
+  .tabletools{padding:10px 18px}
+  th,td{padding:11px 18px}
+}
+.greeting{display:flex;align-items:center;gap:8px}
+.greeting-icon{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;flex-shrink:0}
+.greeting-icon.morning{background:#fff3df;color:#d98a12}
+.greeting-icon.afternoon{background:#ffeede;color:#d4682a}
+.greeting-icon.evening{background:#eceaff;color:#5b52c7}
+.greeting small{display:block;font-size:10px;font-weight:600;color:#87958d;letter-spacing:0}
+
+/* add sheet */
+.add-sheet .add-choice{margin-bottom:9px}
+.code-banner{display:flex;gap:8px;align-items:center;background:#eef4ff;border:1px solid #d5e2fb;color:#2f5ea8;border-radius:10px;padding:10px 12px;font-size:11px;margin-bottom:14px}
+.code-banner code{font-weight:800}
+@media(max-width:720px){
+  .modalback{animation:fadein .15s ease-out}
+  .modal{animation:sheetup .22s ease-out}
+  .add-sheet .modalhead{position:relative;padding-top:22px}
+  .add-sheet .modalhead:before{content:"";position:absolute;top:8px;left:50%;width:38px;height:4px;margin-left:-19px;border-radius:4px;background:#d6dfda}
+}
+@keyframes sheetup{from{transform:translateY(40px);opacity:.4}to{transform:none;opacity:1}}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+
+/* item / order status dropdown */
+.status-select{display:flex;align-items:center;gap:10px;border:1px solid #d5e2fb;background:#f5f8ff;border-radius:10px;padding:10px 12px;margin:0 0 12px}
+.status-select>span{font-size:10px;font-weight:750;color:#2f5ea8;white-space:nowrap}
+.status-select select{flex:1;min-width:0;min-height:38px;border:1px solid #c8d8f6;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700;background:#fff;color:#1f3f75}
+.status-select small{display:block;font-size:10px;color:#6f80a3;margin-top:4px}
+.order-row .status-select{margin:0;padding:6px 8px}
+.cat-chip{border:1px dashed #9fcbb4;background:#f6fbf8;color:#176a59;border-radius:20px;padding:5px 10px;font-size:10px;font-weight:750;display:inline-flex;align-items:center;gap:5px}
+.cat-edit{display:flex;gap:6px;align-items:center}
+.cat-edit select{min-height:32px;border:1px solid #9fcbb4;border-radius:8px;padding:4px 8px;font-size:11px}

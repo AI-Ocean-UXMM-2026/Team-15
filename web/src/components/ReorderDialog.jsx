@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { X, Sparkles, CheckCircle2 } from "lucide-react";
 import { useT, useApp, Input, Field, orderMessage } from "../lib.jsx";
 import SupplierMessage from "./SupplierMessage.jsx";
+import OrderStatusSelect from "./OrderStatusSelect.jsx";
 
 /** PRD 5.4 — reorder from the stored supplier; the order starts as Pending and can be sent by Viber/Telegram/SMS. */
 export default function ReorderDialog({ product, onClose }) {
@@ -27,6 +28,7 @@ export default function ReorderDialog({ product, onClose }) {
       <div className="modalhead"><div><div className="overline">{t("orders").toUpperCase()}</div><h3>{created ? t("sendToSupplier") : t("reorderTitle")}</h3></div><button type="button" className="iconbutton" title={t("close")} onClick={onClose}><X /></button></div>
       {created ? <div className="modalbody">
         <div className="successbox"><CheckCircle2 size={17} />{t("orderCreated")}</div>
+        <OrderStatusSelect product={{ ...product, orderStatus: created.status }} order={{ ...created, unit: product.unit }} onChanged={onClose} />
         <p className="choice-subtitle">{t("sendToSupplierSub")}</p>
         <SupplierMessage text={message} phone={form.supplierPhone} />
         <div className="modalfoot"><button type="button" className="primary" onClick={onClose}>{t("done")}</button></div>

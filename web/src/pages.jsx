@@ -3,6 +3,7 @@ import { Boxes, Package, AlertTriangle, Bell, ArrowDownToLine, ArrowUpFromLine, 
 import { useT, useApp, I18n, Input, Field, ExpiryInput, StatusBadge, expiryLabel, runOutLabel, orderMessage, todayISO, CATEGORIES } from "./lib.jsx";
 import Scanner from "./components/Scanner.jsx";
 import SupplierMessage from "./components/SupplierMessage.jsx";
+import OrderStatusSelect from "./components/OrderStatusSelect.jsx";
 
 // ---------- restock forecast ----------
 function ForecastPanel() {
@@ -271,9 +272,7 @@ export function Orders() {
       {(o.status === "PENDING" || o.status === "CONFIRM_SHIPPING") && <div className="order-actions">
         <button className="secondary smallbtn" onClick={() => setMessaging(messaging === o.id ? null : o.id)}><Send size={13} />{t("sendMessage")}</button>
         {o.supplierPhone && <a className="secondary smallbtn" href={`tel:${o.supplierPhone.replace(/\s+/g, "")}`}>{t("callSupplier")}</a>}
-        {o.status === "PENDING" && <button className="secondary smallbtn" onClick={() => update(o, "CONFIRM_SHIPPING")}>{t("markConfirmShipping")}</button>}
-        <button className="primary smallbtn" onClick={() => setReceiving({ order: o, qty: o.quantity, expiryDate: "" })}>{t("markReceived")}</button>
-        <button className="textbutton danger smallbtn" onClick={() => update(o, "CANCELLED")}>{t("cancelOrder")}</button>
+        <OrderStatusSelect order={o} product={data.products.find((p) => p.id === o.productId)} onReceive={(ord) => setReceiving({ order: ord, qty: ord.quantity, expiryDate: "" })} onChanged={refresh} />
       </div>}
       {messaging === o.id && <div className="order-message"><SupplierMessage phone={o.supplierPhone} text={orderMessage(t, { supplier: o.supplier, warehouse: warehouse?.name, product: o.productName, quantity: o.quantity, unit: o.unit })} /></div>}
     </div>) : <div className="empty">{t("noOrders")}</div>}

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { LayoutDashboard, Home, Boxes, ArrowDownToLine, ArrowUpFromLine, ClipboardCheck, Bell, History as HistoryIcon, RefreshCw, LogOut, Languages, Package, AlertTriangle, CheckCircle2, Warehouse, Mic, ScanLine, Settings as SettingsIcon, Truck, Plus, X } from "lucide-react";
+import { LayoutDashboard, Home, Boxes, ArrowDownToLine, ArrowUpFromLine, ClipboardCheck, Bell, History as HistoryIcon, RefreshCw, LogOut, Languages, Package, AlertTriangle, CheckCircle2, Warehouse, Mic, ScanLine, Settings as SettingsIcon, Truck, Plus, X, Sun, Sunset, Moon } from "lucide-react";
+import Scanner from "./components/Scanner.jsx";
 import { I18n, AppCtx, useT, apiRequest, Input } from "./lib.jsx";
 import { Dashboard, Inventory, ScanPage, StockMovement, Count, Orders, Alerts, History, Settings } from "./pages.jsx";
 import PushToTalk from "./components/PushToTalk.jsx";
@@ -74,15 +75,27 @@ function Login({ onAuth }) {
   </div>;
 }
 
-function AddChoice({ onTyping, onPtt, onClose }) {
+/** The "+" sheet: push-to-talk, scan, or typing. After scanning an unknown code it reopens with that code. */
+function AddChoice({ onTyping, onPtt, onScan, onClose, code }) {
   const t = useT();
-  return <div className="modal add-choice-modal">
-    <div className="modalhead"><div><div className="overline">{t("catalog")}</div><h3>{t("addTitle")}</h3></div><button type="button" className="iconbutton" title={t("close")} onClick={onClose}><X /></button></div>
-    <div className="modalbody"><h3 className="choice-title">{t("howAdd")}</h3><p className="choice-subtitle">{t("howAddSub")}</p>
+  return <div className="modal add-choice-modal add-sheet">
+    <div className="modalhead"><div><div className="overline">{t("updateStock")}</div><h3>{code ? t("newCodeTitle") : t("addTitle")}</h3></div><button type="button" className="iconbutton" title={t("close")} onClick={onClose}><X /></button></div>
+    <div className="modalbody">
+      {code ? <div className="code-banner"><ScanLine size={16} /><span>{t("newCodeIs")} <code>{code}</code></span></div>
+        : <><h3 className="choice-title">{t("howAdd")}</h3><p className="choice-subtitle">{t("howAddSub")}</p></>}
       <button type="button" className="add-choice featured" onClick={onPtt}><span className="choice-icon"><Mic size={23} /></span><span><b>{t("ptt")} <em className="tag">{t("fastest")}</em></b><small>{t("choicePttSub")}</small></span><span className="choice-chevron">›</span></button>
+      {!code && <button type="button" className="add-choice" onClick={onScan}><span className="choice-icon"><ScanLine size={23} /></span><span><b>{t("choiceScan")}</b><small>{t("choiceScanSub")}</small></span><span className="choice-chevron">›</span></button>}
       <button type="button" className="add-choice" onClick={onTyping}><span className="choice-icon"><Package size={23} /></span><span><b>{t("choiceTyping")}</b><small>{t("choiceTypingSub")}</small></span><span className="choice-chevron">›</span></button>
     </div>
   </div>;
+}
+
+function Greeting({ name }) {
+  const t = useT();
+  const h = new Date().getHours();
+  const part = h < 12 ? "morning" : h < 17 ? "afternoon" : "evening";
+  const Icon = part === "morning" ? Sun : part === "afternoon" ? Sunset : Moon;
+  return <span className="greeting"><span>{t(`greet_${part}`, { name: (name || "").split(" ")[0] })}</span><span className={`greeting-icon ${part}`}><Icon size={16} /></span></span>;
 }
 
 function App() {
@@ -101,6 +114,7 @@ function App() {
   const [detailId, setDetailId] = useState(null);
   const [reorderFor, setReorderFor] = useState(null);
   const [labelIds, setLabelIds] = useState(null);
+  const [scanning, setScanning] = useState(false);
   const [prefill, setPrefill] = useState(null);
   const [pttCode, setPttCode] = useState("");
   const [pttRows, setPttRows] = useState([]);
@@ -143,7 +157,16 @@ function App() {
 
   if (!token) return <Login onAuth={(r) => { store.set("invento-token", r.token); setToken(r.token); setUser(r.user); setWarehouse(r.warehouse); }} />;
 
-  const title = page === "dashboard" ? t("welcome") : t(page);
+  const title = page === "dashboard" ? <Greeting name={user?.name} /> : t(page);
+  // "+" sheet → Scan: a known code opens the product; an unknown one offers push-to-talk or typing with it.
+  const onScanned = async (code) => {
+    setScanning(false);
+    try {
+      const r = await request(`/v1/products/lookup/${encodeURIComponent(code)}`);
+      if (r.found) { setDetailId(r.product.id); return; }
+    } catch { /* fall through to registering the code */ }
+    setAdd({ mode: "choice", code });
+  };
   return <AppCtx.Provider value={ctx}>
     <div className={t.lang === "my" ? "app langmy" : "app"}>
       <aside className="sidebar">
@@ -167,7 +190,6 @@ function App() {
             <LanguageButton />
             <button className="iconbutton" title={t("refresh")} onClick={load}><RefreshCw size={17} /></button>
             <button className="iconbutton mobile-only" title={t("settings")} onClick={() => setPage("settings")}><SettingsIcon size={17} /></button>
-            <div className="avatar">{(user?.name || "O").slice(0, 1).toUpperCase()}</div>
           </div>
         </header>
         <section className="content">
@@ -194,13 +216,17 @@ function App() {
       </nav>
       {add && <div className="modalback" onMouseDown={(e) => { if (e.target === e.currentTarget) setAdd(null); }}>
         {add.mode === "choice"
-          ? <AddChoice onClose={() => setAdd(null)} onTyping={() => setAdd({ mode: "manual", preset: null })} onPtt={() => { setAdd(null); setPttCode(""); setPage("ptt"); }} />
+          ? <AddChoice code={add.code} onClose={() => setAdd(null)}
+              onTyping={() => setAdd({ mode: "manual", preset: add.code ? { barcode: add.code } : null })}
+              onPtt={() => { setAdd(null); setPttCode(add.code || ""); setPage("ptt"); }}
+              onScan={() => { setAdd(null); setScanning(true); }} />
           : <ProductForm preset={add.preset} onCancel={() => setAdd(add.preset ? null : { mode: "choice" })} onDone={(p) => { setAdd(null); setDetailId(p.id); }} />}
       </div>}
       {editing && <div className="modalback" onMouseDown={(e) => { if (e.target === e.currentTarget) setEditing(null); }}><ProductForm product={editing} onCancel={() => setEditing(null)} onDone={(p) => { setEditing(null); setDetailId(p.id); }} /></div>}
       {detailId && <ProductDetail key={detailId} id={detailId} onClose={() => setDetailId(null)} />}
       {reorderFor && <ReorderDialog product={reorderFor} onClose={() => setReorderFor(null)} />}
       {labelIds && <LabelSheet initialIds={labelIds} onClose={() => setLabelIds(null)} />}
+      {scanning && <Scanner onDetected={onScanned} onClose={() => setScanning(false)} />}
     </div>
   </AppCtx.Provider>;
 }
