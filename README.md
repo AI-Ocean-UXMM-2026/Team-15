@@ -1,28 +1,49 @@
 # Invento
 
-Android-first inventory management for Myanmar warehouse operators. This folder is a **local planning workspace, not a Git repository**.
+An interactive Android-first inventory prototype for one warehouse and a five-person team. Scan a product, speak its details, review the receiving list, and save a traceable delivery.
 
-Read [SPEC.md](SPEC.md) for product and technical requirements. Source documents and UI references are in `references/` and `user-flows/`. Project-local skills live in `.agents/skills/`:
+## Try it
 
-- `invento-i18n` — English/Burmese typography, terminology and localization
-- `invento-github-publishing` — independent child repos + parent Git submodules
+Open `index.html` directly in a modern browser, or serve this directory:
 
-## Planned repository topology
-
-```text
-invento/              # parent repo (future)
-├── SPEC.md
-├── .agents/skills/
-├── design-system/
-├── icons/
-├── references/
-├── app/               # invento-app Git submodule (future)
-├── api/               # invento-api Git submodule (future)
-└── mobile/            # invento-mobile Git submodule (future)
+```sh
+python -m http.server 8000 --bind 127.0.0.1
 ```
 
-The three applications have **not** been scaffolded and no remote repos have been published. Do not treat provisional tokens as verified Anydesignstyem assets or placeholder icon mappings as Reicon assets.
+There are no application dependencies or build steps. On small screens the app fills the viewport; desktop shows a phone preview and workflow notes.
 
-## Confirmed Phase 1 decisions
+Start with the central **Scan** button. **Type manually** is at the top of the scanner. Choose a sample product to see its barcode and Push to Talk on the same screen. Use the sample voice phrase, review, and confirm. The next screen adds a product photo (camera or gallery), supplier and extra details without a location field. Select a supplier or add one with name, contact person, phone, email, social account and address. Then add the item to the receiving list. Add noodles, water and bread, then **Save delivery**. Stock changes only at that final save.
 
-One owner + four employees; no checkout; cloud English/Burmese AI voice with human confirmation; offline cached inventory viewing only (online stock writes). See SPEC.md for milestone gates and remaining vendor/deployment decisions.
+Also try manual registration, Stock In, Stock Out, Count, Supplier orders, alert preferences and History. Setting contains language switching, an offline simulation, a five-member team preview and onboarding. Actual browser offline events also block stock writes.
+
+## Project structure
+
+- `index.html` — application and desktop presentation shell
+- `assets/app.js` — screen rendering, interaction, camera/voice adapters and local state
+- `assets/styles.css` — responsive components and layout
+- `locales/en.json`, `locales/my.json` — English and draft Myanmar strings
+- `assets/locales.js` — generated locale bundle for direct file opening
+- `design-system/tokens/` — provisional tokens; official Figma exports remain unverified
+- `SPEC.md` — PRD reconciliation, screen contracts and implementation roadmap
+- `references/INVENTO-PRD-v1.1.*` — current requirements
+- `user-flows/Crabbty Crab.png` — original registration/dispatch flow
+- `tests/prototype.cjs` — browser interaction checks
+- `prototype/screenshots/` — captured home, scanner, voice, desktop and Myanmar views
+
+## Test
+
+Install Playwright in your development environment and its Chromium browser, then run:
+
+```sh
+node tests/prototype.cjs
+```
+
+The suite also supports a system browser using `CHROMIUM_PATH=/path/to/chromium`. See [test instructions](tests/README.md). Regenerate the locale bundle after editing JSON with `node scripts/build-locales.cjs`.
+
+## Current boundaries
+
+This is a working local UI prototype, not a production Android application. Data stays in browser storage. Browser camera scanning requires `BarcodeDetector` and a secure context; typed/sample codes are always available. Optional browser speech recognition is not the planned cloud voice service. The three sample phrases are explicitly demo inputs. Sign-in and the five-person roster are presentation screens, not authentication/authorization. Supplier status updates do not send messages.
+
+The supplied [Figma file](https://www.figma.com/design/V6w22Z09deAA1CbQCSuJjv/Stock-Management-System?node-id=1206-71) could not be retrieved through this environment's network proxy. Tokens and local SVGs are provisional, not verified Anydesignstyem/Reicon assets. Myanmar strings require completion and native-speaker review.
+
+Existing prototype data is imported from legacy keys when available. The new store is `invento-v3`; legacy keys remain intact. Clear that key in browser developer tools to start with fresh sample data.
