@@ -39,6 +39,7 @@ export default function ProductDetail({ id, onClose }) {
         {row(t("category"), t.cat(p.category))}
         {row(t("fdaCode"), p.fdaCode)}
         {row(t("threshold"), t.num(p.lowStockThreshold))}
+        {p.shelfLifeDays > 0 && row(t("shelfLife"), t("shelfLifeValue", { n: p.shelfLifeDays }))}
         {row(t("supplier"), [p.supplier, p.supplierPhone, p.supplierEmail].filter(Boolean).join(" · "))}
         {row(t("remarks"), p.remarks)}
         {p.activeReorder && row(t("supplierOrder"), `${t(`status_${p.activeReorder.status}`)} · ${t.num(p.activeReorder.quantity)} ${p.unit}`)}

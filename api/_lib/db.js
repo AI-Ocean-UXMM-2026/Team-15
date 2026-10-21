@@ -100,7 +100,7 @@ async function seedDemo(db) {
 const DEMO_PRODUCTS = [
   { name: "Instant Noodles", sku: "890100000001", category: "Food & Beverage", unit: "packs", supplier: "Golden Myanmar Trading", supplierPhone: "09 420 000 111", lowStockThreshold: 20, quantity: 40, perDay: 6, expiryIn: 60 },
   { name: "Bottled Water 600ml", sku: "890100000002", category: "Food & Beverage", unit: "bottles", supplier: "Shwe Pyi Supplier", supplierPhone: "09 420 000 222", lowStockThreshold: 24, quantity: 12, perDay: 4, expiryIn: 180 },
-  { name: "White Bread", sku: "890100000003", category: "Food & Beverage", unit: "loaves", supplier: "City Bakery", supplierPhone: "09 420 000 333", lowStockThreshold: 10, quantity: 6, perDay: 2, expiryIn: 3 },
+  { name: "White Bread", sku: "890100000003", category: "Food & Beverage", unit: "loaves", supplier: "City Bakery", supplierPhone: "09 420 000 333", lowStockThreshold: 10, quantity: 6, perDay: 2, expiryIn: 3, shelfLifeDays: 4 },
   { name: "Cooking Oil 1L", sku: "890100000006", category: "Food & Beverage", unit: "bottles", supplier: "Shwe Pyi Supplier", supplierPhone: "09 420 000 222", lowStockThreshold: 10, quantity: 30, perDay: 3, expiryIn: 240 },
   { name: "Laundry Powder 1kg", sku: "890100000004", category: "Household", unit: "bags", supplier: "Mandalay Wholesale", supplierPhone: "09 420 000 444", lowStockThreshold: 8, quantity: 0, perDay: 1 },
   { name: "Toothpaste 100g", sku: "890100000005", category: "Personal Care", unit: "tubes", supplier: "Golden Myanmar Trading", supplierPhone: "09 420 000 111", lowStockThreshold: 10, quantity: 28, perDay: 1 },
@@ -138,7 +138,7 @@ export async function seedDemoStock(db, { warehouseId, userId, userName }) {
     await db.collection("products").insertOne({
       _id: productId, warehouseId, name: s.name, description: "", sku: s.sku, barcode: s.sku, category: s.category,
       unit: s.unit, supplier: s.supplier, supplierPhone: s.supplierPhone, supplierEmail: "", fdaCode: "", photos: [],
-      remarks: "", lowStockThreshold: s.lowStockThreshold, quantity: qty, orderStatus: null, archived: false,
+      remarks: "", lowStockThreshold: s.lowStockThreshold, shelfLifeDays: s.shelfLifeDays || 0, quantity: qty, orderStatus: null, archived: false,
       createdAt: created, updatedAt: new Date()
     });
     if (s.expiryIn && qty > 0) {

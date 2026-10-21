@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useMemo, useState } from "react";
 import { Boxes, Package, AlertTriangle, Bell, ArrowDownToLine, ArrowUpFromLine, ClipboardCheck, Plus, Mic, Search, RefreshCw, Truck, ScanLine, CalendarClock, Sparkles, QrCode, Send } from "lucide-react";
-import { useT, useApp, I18n, Input, Field, StatusBadge, expiryLabel, runOutLabel, orderMessage, todayISO, CATEGORIES } from "./lib.jsx";
+import { useT, useApp, I18n, Input, Field, ExpiryInput, StatusBadge, expiryLabel, runOutLabel, orderMessage, todayISO, CATEGORIES } from "./lib.jsx";
 import Scanner from "./components/Scanner.jsx";
 import SupplierMessage from "./components/SupplierMessage.jsx";
 
@@ -198,11 +198,13 @@ export function StockMovement({ type }) {
         <Input label={t("reason")} value={tx.reason} onChange={set("reason")} placeholder={isIn ? t("reasonInPh") : t("reasonOutPh")} />
         <Input label={t("reference")} value={tx.reference} onChange={set("reference")} placeholder={t("referencePh")} />
       </div>
-      {isIn && <div className="formgrid three">
-        <Input label={t("stockInDate")} value={tx.stockInDate} onChange={set("stockInDate")} type="date" />
-        <Input label={t("expiryDate")} value={tx.expiryDate} onChange={set("expiryDate")} type="date" />
-        <Input label={t("batch")} value={tx.batchNumber} onChange={set("batchNumber")} />
-      </div>}
+      {isIn && <>
+        <div className="formgrid">
+          <Input label={t("stockInDate")} value={tx.stockInDate} onChange={set("stockInDate")} type="date" />
+          <Input label={t("batch")} value={tx.batchNumber} onChange={set("batchNumber")} />
+        </div>
+        <ExpiryInput label={t("expiryDate")} value={tx.expiryDate} onChange={set("expiryDate")} base={tx.stockInDate} shelfLifeDays={selected?.shelfLifeDays} />
+      </>}
       <Input label={isIn ? t("remarks") : t("note")} value={tx.note} onChange={set("note")} placeholder={isIn ? t("remarksPh") : ""} />
       {!isIn && <div className="hint"><AlertTriangle size={16} /> {t("shipHint")}</div>}
       <div className="formactions"><button type="button" className="secondary" onClick={() => setPage("dashboard")}>{t("cancel")}</button><button className="primary" disabled={busy || over}>{t("confirm")}</button></div>
@@ -280,7 +282,7 @@ export function Orders() {
         <div className="modalhead"><div><div className="overline">{t("orders").toUpperCase()}</div><h3>{receiving.order.productName}</h3></div></div>
         <div className="modalbody">
           <Input label={t("receivedQty")} value={receiving.qty} onChange={(v) => setReceiving({ ...receiving, qty: v })} type="number" min={1} step={1} required />
-          <Input label={t("expiryDate")} value={receiving.expiryDate} onChange={(v) => setReceiving({ ...receiving, expiryDate: v })} type="date" />
+          <ExpiryInput label={t("expiryDate")} value={receiving.expiryDate} onChange={(v) => setReceiving({ ...receiving, expiryDate: v })} base={todayISO()} shelfLifeDays={data.products.find((p) => p.id === receiving.order.productId)?.shelfLifeDays} />
           <div className="hint">{t("receivedHint")}</div>
         </div>
         <div className="modalfoot"><button type="button" className="secondary" onClick={() => setReceiving(null)}>{t("cancel")}</button><button className="primary">{t("markReceived")}</button></div>

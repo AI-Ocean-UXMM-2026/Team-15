@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Mic, ScanLine, RotateCcw, Check, Trash2, Save, Keyboard } from "lucide-react";
-import { useT, useApp, Input } from "../lib.jsx";
+import { useT, useApp, Input, ExpiryInput, autoExpiry, todayISO } from "../lib.jsx";
 import Scanner from "./Scanner.jsx";
 
 const SpeechRecognition = typeof window !== "undefined" ? window.SpeechRecognition || window.webkitSpeechRecognition : null;
@@ -49,7 +49,8 @@ export default function PushToTalk({ initialCode = "" }) {
       const existing = lookup?.found ? lookup.product : null;
       setReview({
         transcript: r.transcript, name: r.name || existing?.name || "", quantity: r.quantity ?? "",
-        unit: r.unit || existing?.unit || "pcs", description: r.description || ""
+        unit: r.unit || existing?.unit || "pcs", description: r.description || "",
+        expiryDate: r.expiryDate || "", expiryText: r.expiryText || "", shelfLifeDays: existing?.shelfLifeDays || 0
       });
     } catch (e) { setError(t.err(e)); } finally { setProcessing(false); }
   }
@@ -89,7 +90,8 @@ export default function PushToTalk({ initialCode = "" }) {
     const existing = lookup?.found ? lookup.product : null;
     setRows((r) => [...r, {
       key: `${Date.now()}-${Math.random()}`, code, name: review.name.trim(), quantity: qty, unit: review.unit.trim(),
-      description: review.description.trim(), expiryDate: "", remarks: "", existing: Boolean(existing)
+      description: review.description.trim(), expiryDate: review.expiryDate || "", remarks: "", existing: Boolean(existing),
+      shelfLifeDays: existing?.shelfLifeDays || 0
     }]);
     setReview(null); setHeard(""); setTyped(""); setCode(""); setLookup(null); setError("");
   };
@@ -164,6 +166,8 @@ export default function PushToTalk({ initialCode = "" }) {
                 <Input label={t("unit")} value={review.unit} onChange={(v) => setReview({ ...review, unit: v })} />
               </div>
               <Input label={t("description")} value={review.description} onChange={(v) => setReview({ ...review, description: v })} />
+              {review.expiryText && <small className="heard-expiry">{t("heardExpiry", { text: t.num(review.expiryText) })}</small>}
+              <ExpiryInput label={t("expiryDate")} value={review.expiryDate} onChange={(v) => setReview({ ...review, expiryDate: v })} base={todayISO()} shelfLifeDays={review.shelfLifeDays} />
               <div className="formactions"><button type="button" className="secondary" onClick={() => { setReview(null); setHeard(""); }}><RotateCcw size={15} />{t("retry")}</button><button type="button" className="primary" onClick={confirm}><Check size={15} />{t("confirmItem")}</button></div>
             </div> : <div className="empty small">{t("speakExample")}</div>}
           </div>
@@ -179,7 +183,8 @@ export default function PushToTalk({ initialCode = "" }) {
             <td><input value={r.name} onChange={(e) => updateRow(r.key, { name: e.target.value })} /></td>
             <td><input className="num" type="number" min={1} step={1} value={r.quantity} onChange={(e) => updateRow(r.key, { quantity: e.target.value })} /></td>
             <td><input className="short" value={r.unit} onChange={(e) => updateRow(r.key, { unit: e.target.value })} /></td>
-            <td><input type="date" value={r.expiryDate} onChange={(e) => updateRow(r.key, { expiryDate: e.target.value })} /></td>
+            <td><input type="date" value={r.expiryDate} onChange={(e) => updateRow(r.key, { expiryDate: e.target.value })} />
+              {!r.expiryDate && r.shelfLifeDays > 0 && <small className="auto-expiry">{t("autoShort", { date: t.date(autoExpiry(r.shelfLifeDays)) })}</small>}</td>
             <td><input value={r.remarks} onChange={(e) => updateRow(r.key, { remarks: e.target.value })} placeholder={t("remarksPh")} /></td>
             <td><button type="button" className="iconbutton" title={t("remove")} onClick={() => setRows((x) => x.filter((y) => y.key !== r.key))}><Trash2 size={15} /></button></td>
           </tr>)}</tbody>

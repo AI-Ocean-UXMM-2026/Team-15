@@ -1,11 +1,11 @@
 import React, { useState } from "react";
 import { Camera, ScanLine, Trash2, X } from "lucide-react";
-import { useT, useApp, Field, Input, resizeImage, todayISO, CATEGORIES } from "../lib.jsx";
+import { useT, useApp, Field, Input, ExpiryInput, resizeImage, todayISO, CATEGORIES } from "../lib.jsx";
 import Scanner from "./Scanner.jsx";
 
 const blank = (threshold) => ({
   name: "", description: "", sku: "", barcode: "", category: "Food & Beverage", unit: "pcs", fdaCode: "",
-  supplier: "", supplierPhone: "", supplierEmail: "", lowStockThreshold: threshold, initialQuantity: 0,
+  supplier: "", supplierPhone: "", supplierEmail: "", lowStockThreshold: threshold, initialQuantity: 0, shelfLifeDays: "",
   stockInDate: todayISO(), expiryDate: "", remarks: "", photos: []
 });
 
@@ -39,7 +39,7 @@ export default function ProductForm({ product, preset, onDone, onCancel }) {
     e.preventDefault();
     setBusy(true); setError("");
     try {
-      const body = { ...form, lowStockThreshold: Number(form.lowStockThreshold), initialQuantity: Number(form.initialQuantity) };
+      const body = { ...form, lowStockThreshold: Number(form.lowStockThreshold), initialQuantity: Number(form.initialQuantity), shelfLifeDays: Number(form.shelfLifeDays) || 0 };
       const saved = editing
         ? await request(`/v1/products/${product.id}`, { method: "PATCH", body: JSON.stringify(body) })
         : await request("/v1/products", { method: "POST", body: JSON.stringify(body) });
@@ -87,10 +87,11 @@ export default function ProductForm({ product, preset, onDone, onCancel }) {
           {!editing && <Input label={t("quantity")} value={form.initialQuantity} onChange={set("initialQuantity")} type="number" min={0} step={1} required />}
           <Input label={t("threshold")} value={form.lowStockThreshold} onChange={set("lowStockThreshold")} type="number" min={0} step={1} required />
         </div>
-        {!editing && <div className="formgrid">
+        <Input label={t("shelfLife")} value={form.shelfLifeDays ?? ""} onChange={set("shelfLifeDays")} type="number" min={0} max={3650} step={1} placeholder={t("shelfLifePh")} hint={t("shelfLifeHint")} />
+        {!editing && <>
           <Input label={t("stockInDate")} value={form.stockInDate} onChange={set("stockInDate")} type="date" />
-          <Input label={t("expiryDate")} value={form.expiryDate} onChange={set("expiryDate")} type="date" />
-        </div>}
+          <ExpiryInput label={t("expiryDate")} value={form.expiryDate} onChange={set("expiryDate")} base={form.stockInDate} shelfLifeDays={form.shelfLifeDays} />
+        </>}
         <Field label={t("remarks")}><textarea value={form.remarks} onChange={(e) => set("remarks")(e.target.value)} placeholder={t("remarksPh")} /></Field>
         {!editing && <div className="hint">{t("openingHint")}</div>}
       </div>

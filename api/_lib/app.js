@@ -79,9 +79,9 @@ function cleanInt(value, min = 0) {
 }
 const isoDate = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v || "")) ? String(v) : "");
 const today = () => new Date().toISOString().slice(0, 10);
-function addDays(days) {
-  const d = new Date();
-  d.setDate(d.getDate() + days);
+function addDays(days, from) {
+  const d = from ? new Date(`${from}T00:00:00Z`) : new Date();
+  d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString().slice(0, 10);
 }
 const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -93,11 +93,14 @@ function productFields(b, old = {}) {
   const pick = (key, max) => (b[key] !== undefined ? str(b[key], max) : old[key] ?? "");
   const threshold = b.lowStockThreshold !== undefined ? cleanInt(b.lowStockThreshold) : old.lowStockThreshold ?? 5;
   if (threshold === null) fail(400, "VALIDATION_ERROR", "Low-stock threshold must be a non-negative whole number.");
+  // Shelf life lets undated goods (bread, vegetables, local products) get an expiry date automatically on stock-in.
+  const shelfLife = b.shelfLifeDays !== undefined && b.shelfLifeDays !== "" ? cleanInt(b.shelfLifeDays) : old.shelfLifeDays ?? 0;
+  if (shelfLife === null || shelfLife > 3650) fail(400, "VALIDATION_ERROR", "Shelf life must be between 0 and 3650 days.");
   const fields = {
     name: pick("name", 160), description: pick("description", 2000), sku: pick("sku", 80), barcode: pick("barcode", 80),
     category: pick("category", 80) || "Other", unit: pick("unit", 40) || "pcs", supplier: pick("supplier", 160),
     supplierPhone: pick("supplierPhone", 60), supplierEmail: pick("supplierEmail", 160), fdaCode: pick("fdaCode", 80),
-    remarks: pick("remarks", 1000), lowStockThreshold: threshold,
+    remarks: pick("remarks", 1000), lowStockThreshold: threshold, shelfLifeDays: shelfLife,
     photos: b.photos !== undefined ? cleanPhotos(b.photos) : old.photos ?? []
   };
   if (!fields.name) fail(400, "VALIDATION_ERROR", "Product name is required.");
@@ -155,14 +158,17 @@ async function stockIn(db, session, { warehouse, user, product, qty, type = "IN"
   );
   if (!updated) fail(404, "NOT_FOUND", "Product not found.");
   let batchId = null;
-  const expiry = isoDate(expiryDate);
+  const inDate = isoDate(stockInDate) || today();
+  const expiry = isoDate(expiryDate) || (updated.shelfLifeDays > 0 ? addDays(updated.shelfLifeDays, inDate) : "");
   if (expiry || str(batchNumber)) {
     batchId = new ObjectId();
     await db.collection("batches").insertOne({
       _id: batchId, warehouseId: warehouse._id, productId: product._id, lotNumber: str(batchNumber, 80), expiryDate: expiry,
-      stockInDate: isoDate(stockInDate) || today(), quantity: qty, remarks: str(remarks, 1000), createdAt: new Date()
+      stockInDate: inDate, quantity: qty, remarks: str(remarks, 1000), createdAt: new Date(),
+      expirySource: isoDate(expiryDate) ? "entered" : expiry ? "shelfLife" : ""
     }, { session });
   }
+  updated.receivedExpiry = expiry;
   await recordMovement(db, session, {
     warehouse, user, product: updated, type, delta: qty, beforeQty: updated.quantity - qty, afterQty: updated.quantity,
     reason: reason || (type === "OPENING" ? "Opening stock" : "Stock received"), reference,

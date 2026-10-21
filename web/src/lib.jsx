@@ -78,6 +78,30 @@ export function expiryLabel(t, dateStr) {
 
 export const todayISO = () => new Date().toISOString().slice(0, 10);
 
+export function addToDate(base, { days = 0, months = 0, years = 0 }) {
+  const d = new Date(`${base || todayISO()}T00:00:00Z`);
+  d.setUTCFullYear(d.getUTCFullYear() + years, d.getUTCMonth() + months, d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+/** Expiry the server will assign from the product's shelf life when no date is entered. */
+export const autoExpiry = (shelfLifeDays, stockInDate) => (Number(shelfLifeDays) > 0 ? addToDate(stockInDate, { days: Number(shelfLifeDays) }) : "");
+
+const QUICK = [["q7d", { days: 7 }], ["q1m", { months: 1 }], ["q3m", { months: 3 }], ["q6m", { months: 6 }], ["q1y", { years: 1 }]];
+
+/** Expiry date input with one-tap +7 days / +1 / +3 / +6 months / +1 year shortcuts. */
+export function ExpiryInput({ label, value, onChange, base, shelfLifeDays }) {
+  const t = useT();
+  const auto = !value && autoExpiry(shelfLifeDays, base);
+  return <label className="field expiry-field"><span>{label}</span>
+    <input type="date" value={value || ""} onChange={(e) => onChange(e.target.value)} />
+    <div className="quick-dates">{QUICK.map(([k, delta]) => {
+      const d = addToDate(base, delta);
+      return <button type="button" key={k} className={value === d ? "chip active" : "chip"} onClick={() => onChange(d)}>{t(k)}</button>;
+    })}{value && <button type="button" className="chip ghost" onClick={() => onChange("")}>{t("clearDate")}</button>}</div>
+    {auto && <small className="fieldhint auto-expiry">{t("autoExpiryHint", { date: t.date(auto), n: shelfLifeDays })}</small>}
+  </label>;
+}
+
 /** "Runs out in 6 days" from the server's restock forecast, or "" when there is no sales history. */
 export function runOutLabel(t, p) {
   if (p?.daysLeft === null || p?.daysLeft === undefined) return "";

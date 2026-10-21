@@ -197,3 +197,10 @@ input.num{width:90px;min-height:36px;border:1px solid #dce6df;border-radius:7px;
   .order-message{padding-left:0}
   .forecast-row{padding:12px}
 }
+
+/* expiry quick dates */
+.quick-dates{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.quick-dates .chip{padding:5px 10px;font-size:10px}
+.chip.ghost{border-style:dashed;color:#87958d}
+.auto-expiry{display:block;color:#6b3fa0!important;font-size:10px;margin-top:4px}
+.heard-expiry{display:block;font-size:10px;color:#376fc0;margin:-4px 0 8px}
