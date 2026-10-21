@@ -1,0 +1,8 @@
+{
+  "scan": "scan-line",
+  "microphone": "mic",
+  "add": "plus",
+  "ship": "package-minus",
+  "save": "check",
+  "back": "arrow-left"
+}
