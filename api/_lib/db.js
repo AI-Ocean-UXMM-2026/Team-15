@@ -92,33 +92,71 @@ async function seedDemo(db) {
     _id: warehouseId, ownerId: userId, name: "Yangon Demo Warehouse", location: "Yangon, Myanmar",
     language: "en", timezone: "Asia/Yangon", settings: { ...defaultSettings }, createdAt: now
   });
-  // The PRD demo scenario: noodles, bottled water and bread, plus a couple of extra lines.
-  const seed = [
-    { name: "Instant Noodles", sku: "890100000001", category: "Food & Beverage", unit: "packs", supplier: "Golden Myanmar Trading", supplierPhone: "09 420 000 111", lowStockThreshold: 20, quantity: 40, expiry: addDays(60) },
-    { name: "Bottled Water 600ml", sku: "890100000002", category: "Food & Beverage", unit: "bottles", supplier: "Shwe Pyi Supplier", supplierPhone: "09 420 000 222", lowStockThreshold: 24, quantity: 12, expiry: addDays(180) },
-    { name: "White Bread", sku: "890100000003", category: "Food & Beverage", unit: "loaves", supplier: "City Bakery", supplierPhone: "09 420 000 333", lowStockThreshold: 10, quantity: 6, expiry: addDays(3) },
-    { name: "Laundry Powder 1kg", sku: "890100000004", category: "Household", unit: "bags", supplier: "Mandalay Wholesale", supplierPhone: "09 420 000 444", lowStockThreshold: 8, quantity: 0 },
-    { name: "Toothpaste 100g", sku: "890100000005", category: "Personal Care", unit: "tubes", supplier: "Golden Myanmar Trading", supplierPhone: "09 420 000 111", lowStockThreshold: 10, quantity: 28 }
-  ];
-  for (const s of seed) {
+  await seedDemoStock(db, { warehouseId, userId, userName: "Demo Owner" });
+}
+
+// The PRD demo scenario (noodles, bottled water, bread) plus a few more lines. `perDay` is the
+// average daily ship-out used to build 30 days of history, so the restock forecast has real data.
+const DEMO_PRODUCTS = [
+  { name: "Instant Noodles", sku: "890100000001", category: "Food & Beverage", unit: "packs", supplier: "Golden Myanmar Trading", supplierPhone: "09 420 000 111", lowStockThreshold: 20, quantity: 40, perDay: 6, expiryIn: 60 },
+  { name: "Bottled Water 600ml", sku: "890100000002", category: "Food & Beverage", unit: "bottles", supplier: "Shwe Pyi Supplier", supplierPhone: "09 420 000 222", lowStockThreshold: 24, quantity: 12, perDay: 4, expiryIn: 180 },
+  { name: "White Bread", sku: "890100000003", category: "Food & Beverage", unit: "loaves", supplier: "City Bakery", supplierPhone: "09 420 000 333", lowStockThreshold: 10, quantity: 6, perDay: 2, expiryIn: 3 },
+  { name: "Cooking Oil 1L", sku: "890100000006", category: "Food & Beverage", unit: "bottles", supplier: "Shwe Pyi Supplier", supplierPhone: "09 420 000 222", lowStockThreshold: 10, quantity: 30, perDay: 3, expiryIn: 240 },
+  { name: "Laundry Powder 1kg", sku: "890100000004", category: "Household", unit: "bags", supplier: "Mandalay Wholesale", supplierPhone: "09 420 000 444", lowStockThreshold: 8, quantity: 0, perDay: 1 },
+  { name: "Toothpaste 100g", sku: "890100000005", category: "Personal Care", unit: "tubes", supplier: "Golden Myanmar Trading", supplierPhone: "09 420 000 111", lowStockThreshold: 10, quantity: 28, perDay: 1 },
+  { name: "Rice 5kg", sku: "890100000007", category: "Food & Beverage", unit: "bags", supplier: "Ayeyarwady Rice Mill", supplierPhone: "09 420 000 555", lowStockThreshold: 10, quantity: 50, perDay: 0.5 }
+];
+const OUT_REASONS = ["Shop delivery", "Wholesale order", "Market stall", "Customer order"];
+
+/** Creates the demo products with a consistent 30-day history: opening stock, one restock, daily ship-outs. */
+export async function seedDemoStock(db, { warehouseId, userId, userName }) {
+  const day = 86_400_000;
+  const start = Date.now() - 30 * day;
+  for (const [k, s] of DEMO_PRODUCTS.entries()) {
     const productId = new ObjectId();
+    // Deterministic day-to-day variation (60%–140% of the average) so charts look real but reproducible.
+    const outs = Array.from({ length: 30 }, (_, i) => Math.round(s.perDay * (0.6 + 0.8 * (((i * 7 + k * 13) % 10) / 10))));
+    const shipped = outs.reduce((a, b) => a + b, 0);
+    // Restocking exactly the second half's sales keeps stock at or above today's level throughout.
+    const restock = outs.slice(15).reduce((a, b) => a + b, 0);
+    const opening = s.quantity + shipped - restock;
+    const base = { warehouseId, productId, actorId: userId, productName: s.name, sku: s.sku, actorName: userName, reference: "", note: "", batchId: null };
+    const moves = [];
+    let qty = opening;
+    moves.push({ ...base, type: "OPENING", delta: opening, beforeQty: 0, afterQty: opening, reason: "Initial stock", createdAt: new Date(start) });
+    outs.forEach((n, i) => {
+      if (i === 15) {
+        moves.push({ ...base, type: "IN", delta: restock, beforeQty: qty, afterQty: qty + restock, reason: "Supplier delivery", reference: `PO-${1001 + k}`, createdAt: new Date(start + i * day + 9 * 3_600_000) });
+        qty += restock;
+      }
+      if (n > 0) {
+        moves.push({ ...base, type: "OUT", delta: -n, beforeQty: qty, afterQty: qty - n, reason: OUT_REASONS[(i + k) % OUT_REASONS.length], createdAt: new Date(start + i * day + 15 * 3_600_000) });
+        qty -= n;
+      }
+    });
+    const created = new Date(start - 5 * day);
     await db.collection("products").insertOne({
       _id: productId, warehouseId, name: s.name, description: "", sku: s.sku, barcode: s.sku, category: s.category,
       unit: s.unit, supplier: s.supplier, supplierPhone: s.supplierPhone, supplierEmail: "", fdaCode: "", photos: [],
-      remarks: "", lowStockThreshold: s.lowStockThreshold, quantity: s.quantity, orderStatus: null, archived: false,
-      createdAt: now, updatedAt: now
+      remarks: "", lowStockThreshold: s.lowStockThreshold, quantity: qty, orderStatus: null, archived: false,
+      createdAt: created, updatedAt: new Date()
     });
-    if (s.quantity > 0) {
-      let batchId = null;
-      if (s.expiry) {
-        batchId = new ObjectId();
-        await db.collection("batches").insertOne({ _id: batchId, warehouseId, productId, lotNumber: "", expiryDate: s.expiry, stockInDate: now.toISOString().slice(0, 10), quantity: s.quantity, remarks: "", createdAt: now });
-      }
-      await db.collection("movements").insertOne({
-        warehouseId, productId, actorId: userId, productName: s.name, sku: s.sku, actorName: "Demo Owner",
-        type: "OPENING", delta: s.quantity, beforeQty: 0, afterQty: s.quantity, reason: "Initial stock",
-        reference: "", note: "Seeded demo data", batchId, createdAt: now
-      });
+    if (s.expiryIn && qty > 0) {
+      await db.collection("batches").insertOne({ warehouseId, productId, lotNumber: "", expiryDate: addDays(s.expiryIn), stockInDate: addDays(-15), quantity: qty, remarks: "", createdAt: new Date() });
     }
+    await db.collection("movements").insertMany(moves);
   }
+}
+
+/** Wipes and rebuilds only the demo account's stock (used by api/scripts/reset-demo.js). */
+export async function resetDemoWarehouse(db) {
+  const user = await db.collection("users").findOne({ email: DEMO.email });
+  if (!user) return { reset: false, reason: "Demo user not found" };
+  const warehouseId = user.warehouseId;
+  const filter = { warehouseId };
+  const removed = {};
+  for (const c of ["products", "batches", "movements", "reorders"]) removed[c] = (await db.collection(c).deleteMany(filter)).deletedCount;
+  await db.collection("warehouses").updateOne({ _id: warehouseId }, { $set: { settings: { ...defaultSettings } } });
+  await seedDemoStock(db, { warehouseId, userId: user._id, userName: user.name });
+  return { reset: true, removed };
 }

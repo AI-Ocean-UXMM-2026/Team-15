@@ -6,3 +6,4 @@ api/server.js
 api/test
 web/dist
 references
+api/scripts

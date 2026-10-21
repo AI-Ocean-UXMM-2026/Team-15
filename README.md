@@ -10,7 +10,11 @@ Built against `references/INVENTO-PRD-v1.1.pdf`.
 - **Item status & supplier reorder (5.4)** — In stock / Low / Out of stock / Pending / Confirm shipping; Received adds stock automatically
 - **Alerts & settings (5.5)** — low stock, out of stock, expiry; configurable expiry reminder days and per-product thresholds
 - **History (5.6)** — every movement with before/after quantities, actor and time
+- **Smart restock forecast** — average daily ship-out over 30 days predicts "runs out in ~N days" and a suggested order quantity (3 weeks of cover); "Running out soon" alerts fire before stock hits the threshold
+- **One-tap supplier order** — order message written in Burmese/English, sent through the phone's share sheet, Viber, Telegram or SMS
+- **QR label printing** — sticker sheet for products without barcodes; scanning a label finds the product
 - Physical count with required reason on variance
+- `npm --prefix api run reset-demo` rebuilds only the demo account with 30 days of history (set `MONGODB_URI` to target Atlas)
 - Full English / Burmese UI — all text lives in `web/src/text.ts` (`npm --prefix web run check` fails if a Burmese string is missing)
 
 ## Run locally (Windows)

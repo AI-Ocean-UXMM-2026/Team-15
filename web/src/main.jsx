@@ -7,6 +7,7 @@ import PushToTalk from "./components/PushToTalk.jsx";
 import ProductForm from "./components/ProductForm.jsx";
 import ProductDetail from "./components/ProductDetail.jsx";
 import ReorderDialog from "./components/ReorderDialog.jsx";
+import LabelSheet from "./components/LabelSheet.jsx";
 import "./style.css";
 import "./features.css";
 
@@ -52,7 +53,7 @@ function Login({ onAuth }) {
   return <div className="loginpage">
     <div className="login-art"><div className="logo"><span className="logoicon">in</span><span>INVENTO<small>{t("appTagline")}</small></span></div>
       <div className="loginheadline">{t("loginHeadline1")}<br /><em>{t("loginHeadline2")}</em></div><p>{t("loginIntro")}</p>
-      <div className="artstats"><div><b>{t.num("05")}</b><span>{t("statDemoProducts")}</span></div><div><b>{t.num("01")}</b><span>{t("statWarehouse")}</span></div><div><b>24/7</b><span>{t("statVisibility")}</span></div></div>
+      <div className="artstats"><div><b>{t.num("07")}</b><span>{t("statDemoProducts")}</span></div><div><b>{t.num("01")}</b><span>{t("statWarehouse")}</span></div><div><b>24/7</b><span>{t("statVisibility")}</span></div></div>
       <div className="loginfoot">{t("loginFoot")}</div></div>
     <form className="loginbox" onSubmit={submit}>
       <LanguageButton className="language" />
@@ -99,6 +100,7 @@ function App() {
   const [editing, setEditing] = useState(null);
   const [detailId, setDetailId] = useState(null);
   const [reorderFor, setReorderFor] = useState(null);
+  const [labelIds, setLabelIds] = useState(null);
   const [prefill, setPrefill] = useState(null);
   const [pttCode, setPttCode] = useState("");
   const [pttRows, setPttRows] = useState([]);
@@ -135,6 +137,7 @@ function App() {
     openAdd: (opts) => setAdd({ mode: opts?.mode || "choice", preset: opts?.barcode ? { barcode: opts.barcode } : null }),
     openProduct: (id) => setDetailId(id),
     openReorder: (p) => setReorderFor(p),
+    openLabels: (ids) => setLabelIds(ids || []),
     openEdit: (p) => request(`/v1/products/${p.id}`).then(setEditing).catch((e) => setError(t.err(e)))
   }), [token, user, warehouse, data, prefill, pttRows, t.lang]);
 
@@ -197,6 +200,7 @@ function App() {
       {editing && <div className="modalback" onMouseDown={(e) => { if (e.target === e.currentTarget) setEditing(null); }}><ProductForm product={editing} onCancel={() => setEditing(null)} onDone={(p) => { setEditing(null); setDetailId(p.id); }} /></div>}
       {detailId && <ProductDetail key={detailId} id={detailId} onClose={() => setDetailId(null)} />}
       {reorderFor && <ReorderDialog product={reorderFor} onClose={() => setReorderFor(null)} />}
+      {labelIds && <LabelSheet initialIds={labelIds} onClose={() => setLabelIds(null)} />}
     </div>
   </AppCtx.Provider>;
 }

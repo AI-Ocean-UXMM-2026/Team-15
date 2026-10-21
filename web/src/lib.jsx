@@ -78,6 +78,42 @@ export function expiryLabel(t, dateStr) {
 
 export const todayISO = () => new Date().toISOString().slice(0, 10);
 
+/** "Runs out in 6 days" from the server's restock forecast, or "" when there is no sales history. */
+export function runOutLabel(t, p) {
+  if (p?.daysLeft === null || p?.daysLeft === undefined) return "";
+  if (p.daysLeft <= 0) return t("runOutNow");
+  return t("runOutIn", { n: p.daysLeft });
+}
+
+// ---------- supplier messaging (Viber / Telegram / SMS) ----------
+export function orderMessage(t, { supplier, warehouse, product, quantity, unit }) {
+  return t("orderMessage", { supplier: supplier || t("supplierFallback"), warehouse: warehouse || "", product, qty: quantity, unit });
+}
+/** Myanmar numbers like "09 420 000 111" become international "+959420000111" for app links. */
+export function intlPhone(phone = "") {
+  const d = phone.replace(/[^\d+]/g, "");
+  if (d.startsWith("+")) return d;
+  if (d.startsWith("09")) return `+95${d.slice(1)}`;
+  if (d.startsWith("959")) return `+${d}`;
+  return d;
+}
+export function messageLinks(phone, text) {
+  const body = encodeURIComponent(text);
+  const tel = intlPhone(phone);
+  return {
+    viber: `viber://forward?text=${body}`,
+    telegram: `https://t.me/share/url?url=${encodeURIComponent("INVENTO")}&text=${body}`,
+    sms: tel ? `sms:${tel}?body=${body}` : `sms:?body=${body}`
+  };
+}
+/** Opens the phone's share sheet (Viber, Telegram, Messenger…) when available, else copies the text. */
+export async function shareText(text) {
+  if (navigator.share) {
+    try { await navigator.share({ text }); return "shared"; } catch (e) { if (e?.name === "AbortError") return "cancelled"; }
+  }
+  try { await navigator.clipboard.writeText(text); return "copied"; } catch { return "failed"; }
+}
+
 /** Shrinks a photo in the browser so it fits comfortably in a MongoDB document. */
 export function resizeImage(file, max = 1000, quality = 0.75) {
   return new Promise((resolve, reject) => {

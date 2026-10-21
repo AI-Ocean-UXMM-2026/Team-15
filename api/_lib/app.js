@@ -41,6 +41,34 @@ function stockStatus(p) {
   return "IN_STOCK";
 }
 const productOut = (p) => (p ? { ...out(p), status: stockStatus(p) } : p);
+
+// ---------- restock forecast ----------
+// Average daily ship-out over the last 30 days predicts when each item runs out, and how much
+// to order so stock covers supplier lead time (7 days) plus two more weeks.
+const USAGE_WINDOW_DAYS = 30;
+const COVER_DAYS = 21;
+const DAY_MS = 86_400_000;
+
+async function usageByProduct(db, warehouseId) {
+  const since = new Date(Date.now() - USAGE_WINDOW_DAYS * DAY_MS);
+  const rows = await db.collection("movements").aggregate([
+    { $match: { warehouseId, type: "OUT", createdAt: { $gte: since } } },
+    { $group: { _id: "$productId", shipped: { $sum: { $abs: "$delta" } } } }
+  ]).toArray();
+  return new Map(rows.map((r) => [String(r._id), r.shipped]));
+}
+function forecast(p, usage) {
+  const shipped = usage.get(String(p._id ?? p.id)) || 0;
+  if (!shipped) return { dailyUsage: 0, daysLeft: null, suggestedOrder: 0 };
+  // Newer products are averaged over their own age, but never less than a week to avoid spikes.
+  const ageDays = (Date.now() - new Date(p.createdAt || Date.now()).getTime()) / DAY_MS;
+  const rate = shipped / Math.min(USAGE_WINDOW_DAYS, Math.max(7, ageDays));
+  return {
+    dailyUsage: Math.round(rate * 10) / 10,
+    daysLeft: p.quantity <= 0 ? 0 : Math.floor(p.quantity / rate),
+    suggestedOrder: Math.max(0, Math.ceil(rate * COVER_DAYS) - p.quantity)
+  };
+}
 const warehouseOut = (w) => (w ? { ...out(w), settings: { ...defaultSettings, ...(w.settings || {}) } } : w);
 
 // ---------- input cleaning ----------
@@ -246,12 +274,21 @@ app.get("/v1/dashboard", async (req, res) => {
       lowStock: { $sum: { $cond: [{ $and: [{ $gt: ["$quantity", 0] }, { $lte: ["$quantity", "$lowStockThreshold"] }] }, 1, 0] } }
     } }
   ]).toArray();
-  const [expiring, pendingOrders, recent] = await Promise.all([
+  const [expiring, pendingOrders, recent, usage, products] = await Promise.all([
     db.collection("batches").countDocuments({ warehouseId: warehouse._id, quantity: { $gt: 0 }, expiryDate: { $gt: "", $lte: addDays(days) } }),
     db.collection("reorders").countDocuments({ warehouseId: warehouse._id, status: { $in: ["PENDING", "CONFIRM_SHIPPING"] } }),
-    db.collection("movements").find({ warehouseId: warehouse._id }).sort({ createdAt: -1 }).limit(6).toArray()
+    db.collection("movements").find({ warehouseId: warehouse._id }).sort({ createdAt: -1 }).limit(6).toArray(),
+    usageByProduct(db, warehouse._id),
+    db.collection("products").find({ warehouseId: warehouse._id, archived: false }, { projection: { photos: 0 } }).toArray()
   ]);
-  res.json({ products: 0, units: 0, outOfStock: 0, lowStock: 0, ...(totals || {}), _id: undefined, expiring, pendingOrders, recent: recent.map(out) });
+  // Items predicted to run out within two weeks, soonest first.
+  const runningOut = products
+    .map((p) => ({ p, f: forecast(p, usage) }))
+    .filter(({ f }) => f.daysLeft !== null && f.daysLeft <= 14)
+    .sort((a, b) => a.f.daysLeft - b.f.daysLeft)
+    .slice(0, 6)
+    .map(({ p, f }) => ({ ...productOut(p), ...f }));
+  res.json({ products: 0, units: 0, outOfStock: 0, lowStock: 0, ...(totals || {}), _id: undefined, expiring, pendingOrders, recent: recent.map(out), runningOut });
 });
 
 app.get("/v1/products", async (req, res) => {
@@ -278,7 +315,8 @@ app.get("/v1/products", async (req, res) => {
     { $addFields: { photoCount: { $size: { $ifNull: ["$photos", []] } }, nextExpiry: { $ifNull: [{ $first: "$nextExpiry.expiryDate" }, ""] } } },
     { $project: { photos: 0 } }
   ]).toArray();
-  res.json({ items: rows.map(productOut), total: rows.length });
+  const usage = await usageByProduct(db, warehouse._id);
+  res.json({ items: rows.map((p) => ({ ...productOut(p), ...forecast(p, usage) })), total: rows.length });
 });
 
 app.post("/v1/products", async (req, res) => {
@@ -327,7 +365,8 @@ app.get("/v1/products/:id", async (req, res) => {
     req.db.collection("batches").find({ productId: p._id, quantity: { $gt: 0 } }).sort({ expiryDate: 1 }).toArray(),
     req.db.collection("reorders").findOne({ productId: p._id, status: { $in: ["PENDING", "CONFIRM_SHIPPING"] } })
   ]);
-  res.json({ ...productOut(p), batches: batches.map(out), activeReorder: out(reorder) || null });
+  const usage = await usageByProduct(req.db, req.warehouse._id);
+  res.json({ ...productOut(p), ...forecast(p, usage), batches: batches.map(out), activeReorder: out(reorder) || null });
 });
 
 app.patch("/v1/products/:id", async (req, res) => {
@@ -474,9 +513,11 @@ app.get("/v1/alerts", async (req, res) => {
   const days = warehouseOut(warehouse).settings.expiryAlertDays;
   const base = { warehouseId: warehouse._id, archived: false };
   const proj = { projection: { photos: 0 } };
-  const [outRows, lowRows, batches] = await Promise.all([
+  const [outRows, lowRows, healthyRows, usage, batches] = await Promise.all([
     db.collection("products").find({ ...base, quantity: { $lte: 0 } }, proj).sort({ name: 1 }).toArray(),
     db.collection("products").find({ ...base, quantity: { $gt: 0 }, $expr: { $lte: ["$quantity", "$lowStockThreshold"] } }, proj).sort({ quantity: 1 }).toArray(),
+    db.collection("products").find({ ...base, $expr: { $gt: ["$quantity", "$lowStockThreshold"] } }, proj).toArray(),
+    usageByProduct(db, warehouse._id),
     db.collection("batches").aggregate([
       { $match: { warehouseId: warehouse._id, quantity: { $gt: 0 }, expiryDate: { $gt: "", $lte: addDays(days) } } },
       { $sort: { expiryDate: 1 } },
@@ -489,6 +530,10 @@ app.get("/v1/alerts", async (req, res) => {
   const items = [
     ...outRows.map((p) => ({ type: "OUT_OF_STOCK", productId: String(p._id), name: p.name, sku: p.sku, quantity: p.quantity, unit: p.unit, threshold: p.lowStockThreshold, orderStatus: p.orderStatus })),
     ...lowRows.map((p) => ({ type: "LOW_STOCK", productId: String(p._id), name: p.name, sku: p.sku, quantity: p.quantity, unit: p.unit, threshold: p.lowStockThreshold, orderStatus: p.orderStatus })),
+    // Predictive: still above its threshold, but at the current pace it will be gone within a week.
+    ...healthyRows.map((p) => ({ p, f: forecast(p, usage) })).filter(({ f }) => f.daysLeft !== null && f.daysLeft <= 7)
+      .sort((a, b) => a.f.daysLeft - b.f.daysLeft)
+      .map(({ p, f }) => ({ type: "RUNNING_OUT", productId: String(p._id), name: p.name, sku: p.sku, quantity: p.quantity, unit: p.unit, threshold: p.lowStockThreshold, orderStatus: p.orderStatus, ...f })),
     ...batches.map((b) => ({
       type: b.expiryDate < now ? "EXPIRED" : "EXPIRY", productId: String(b.productId), batchId: String(b._id), name: b.p.name, sku: b.p.sku,
       quantity: b.quantity, unit: b.p.unit, expiryDate: b.expiryDate,

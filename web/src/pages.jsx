@@ -1,7 +1,30 @@
 import React, { useContext, useEffect, useMemo, useState } from "react";
-import { Boxes, Package, AlertTriangle, Bell, ArrowDownToLine, ArrowUpFromLine, ClipboardCheck, Plus, Mic, Search, RefreshCw, Truck, ScanLine, CalendarClock } from "lucide-react";
-import { useT, useApp, I18n, Input, Field, StatusBadge, expiryLabel, todayISO, CATEGORIES } from "./lib.jsx";
+import { Boxes, Package, AlertTriangle, Bell, ArrowDownToLine, ArrowUpFromLine, ClipboardCheck, Plus, Mic, Search, RefreshCw, Truck, ScanLine, CalendarClock, Sparkles, QrCode, Send } from "lucide-react";
+import { useT, useApp, I18n, Input, Field, StatusBadge, expiryLabel, runOutLabel, orderMessage, todayISO, CATEGORIES } from "./lib.jsx";
 import Scanner from "./components/Scanner.jsx";
+import SupplierMessage from "./components/SupplierMessage.jsx";
+
+// ---------- restock forecast ----------
+function ForecastPanel() {
+  const t = useT();
+  const { data, openProduct, openReorder, setPage } = useApp();
+  const items = data.dashboard?.runningOut || [];
+  return <div className="panel forecast-panel">
+    <div className="panelhead"><div><h3><Sparkles size={16} className="inline-icon" /> {t("forecastTitle")}</h3><p>{t("forecastSub")}</p></div><span className="badge violet-badge">{t("smartBadge")}</span></div>
+    {items.length ? items.map((p) => {
+      const full = Math.min(100, Math.round((p.daysLeft / 14) * 100));
+      return <div className="forecast-row" key={p.id}>
+        <button className="grow forecast-main" onClick={() => openProduct(p.id)}>
+          <b>{p.name}</b>
+          <div className="runway"><span className={p.daysLeft <= 3 ? "red" : p.daysLeft <= 7 ? "amber" : "ok"} style={{ width: `${Math.max(4, full)}%` }} /></div>
+          <small>{runOutLabel(t, p)} · {t("usagePerDay", { n: p.dailyUsage, unit: p.unit })} · {t.num(p.quantity)} {p.unit}</small>
+        </button>
+        {p.orderStatus ? <button className="secondary smallbtn" onClick={() => setPage("orders")}>{t(`status_${p.orderStatus}`)}</button>
+          : p.suggestedOrder > 0 && <button className="primary smallbtn" onClick={() => openReorder(p)}>{t("orderN", { n: p.suggestedOrder, unit: p.unit })}</button>}
+      </div>;
+    }) : <div className="empty">{t("forecastEmpty")}</div>}
+  </div>;
+}
 
 // ---------- shared ----------
 export function MovementTable({ movements }) {
@@ -21,10 +44,12 @@ export function MovementTable({ movements }) {
 
 function AlertRow({ a, action }) {
   const t = useT();
-  const icon = a.type === "OUT_OF_STOCK" || a.type === "EXPIRED" ? "rose" : "amber";
-  const detail = a.type === "EXPIRY" || a.type === "EXPIRED" ? `${t.date(a.expiryDate)} · ${expiryLabel(t, a.expiryDate)}` : t("threshold_of", { n: a.threshold });
+  const icon = a.type === "OUT_OF_STOCK" || a.type === "EXPIRED" ? "rose" : a.type === "RUNNING_OUT" ? "violet" : "amber";
+  const detail = a.type === "EXPIRY" || a.type === "EXPIRED" ? `${t.date(a.expiryDate)} · ${expiryLabel(t, a.expiryDate)}`
+    : a.type === "RUNNING_OUT" ? `${runOutLabel(t, a)} · ${t("usagePerDay", { n: a.dailyUsage, unit: a.unit })}`
+    : t("threshold_of", { n: a.threshold });
   return <div className="alertrow">
-    <span className={`alerticon ${icon}`}>{a.type.startsWith("EXP") ? <CalendarClock size={17} /> : <AlertTriangle size={17} />}</span>
+    <span className={`alerticon ${icon}`}>{a.type.startsWith("EXP") ? <CalendarClock size={17} /> : a.type === "RUNNING_OUT" ? <Sparkles size={17} /> : <AlertTriangle size={17} />}</span>
     <div className="grow"><b>{a.name}</b><small>{t(`alert_${a.type}`)} · {detail}{a.orderStatus ? ` · ${t(`status_${a.orderStatus}`)}` : ""}</small></div>
     <strong>{t.num(a.quantity)} {a.unit}</strong>
     {action}
@@ -58,6 +83,7 @@ export function Dashboard() {
       {metric(<CalendarClock size={19} />, "amber", t("expiring"), d && t.num(d.expiring), t("expiringSub", { days: warehouse?.settings?.expiryAlertDays ?? 30 }), "alerts")}
       {metric(<Truck size={19} />, "violet", t("pendingOrders"), d && t.num(d.pendingOrders), t("pendingOrdersSub"), "orders")}
     </div>
+    <ForecastPanel />
     <div className="twocol">
       <div className="panel"><div className="panelhead"><div><h3>{t("attention")}</h3><p>{t("attentionSub")}</p></div><button className="textbutton" onClick={() => setPage("alerts")}>{t("viewAlerts")}</button></div>
         {data.alerts.slice(0, 5).map((a, i) => <AlertRow key={`${a.type}-${a.productId}-${i}`} a={a} />)}
@@ -81,23 +107,24 @@ export function Dashboard() {
 // ---------- inventory ----------
 export function Inventory() {
   const t = useT();
-  const { data, openAdd, openProduct } = useApp();
+  const { data, openAdd, openProduct, openLabels } = useApp();
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
   const filtered = useMemo(() => data.products.filter((p) => (!category || p.category === category)
     && `${p.name} ${p.sku} ${p.barcode} ${p.supplier}`.toLowerCase().includes(search.toLowerCase())), [data.products, search, category]);
   return <div className="panel">
-    <div className="panelhead"><div><h3>{t("inventory")}</h3><p>{t("inventorySub")}</p></div><button className="primary" onClick={openAdd}><Plus size={17} />{t("addTitle")}</button></div>
+    <div className="panelhead"><div><h3>{t("inventory")}</h3><p>{t("inventorySub")}</p></div><div className="row-gap"><button className="secondary" onClick={() => openLabels(filtered.map((p) => p.id))}><QrCode size={16} />{t("printLabels")}</button><button className="primary" onClick={() => openAdd()}><Plus size={17} />{t("addTitle")}</button></div></div>
     <div className="tabletools">
       <div className="searchbox"><Search size={17} /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("search")} /></div>
       <select className="filter" value={category} onChange={(e) => setCategory(e.target.value)}><option value="">{t("allCategories")}</option>{CATEGORIES.map((c) => <option key={c} value={c}>{t.cat(c)}</option>)}</select>
       <span className="muted">{t("productCount", { n: filtered.length })}</span>
     </div>
-    <div className="tablewrap"><table><thead><tr><th>{t("colProduct")}</th><th>{t("colCategory")}</th><th>{t("colSupplier")}</th><th>{t("colOnHand")}</th><th>{t("colExpiry")}</th><th>{t("colStatus")}</th></tr></thead>
+    <div className="tablewrap"><table><thead><tr><th>{t("colProduct")}</th><th>{t("colCategory")}</th><th>{t("colSupplier")}</th><th>{t("colOnHand")}</th><th>{t("colRunOut")}</th><th>{t("colExpiry")}</th><th>{t("colStatus")}</th></tr></thead>
       <tbody>{filtered.map((p) => <tr key={p.id} onClick={() => openProduct(p.id)} className="clickrow">
         <td><div className="productname"><span className="producticon"><Package size={18} /></span><span><b>{p.name}</b><small>{p.sku}{p.barcode && p.barcode !== p.sku ? ` · ${p.barcode}` : ""}</small></span></div></td>
         <td>{t.cat(p.category)}</td><td>{p.supplier || "—"}</td>
         <td><b>{t.num(p.quantity)}</b> <small>{p.unit}</small></td>
+        <td>{p.daysLeft !== null && p.daysLeft !== undefined ? <><span className={p.daysLeft <= 7 ? "negative" : ""}>{runOutLabel(t, p)}</span><small>{t("usagePerDay", { n: p.dailyUsage, unit: p.unit })}</small></> : "—"}</td>
         <td>{p.nextExpiry ? <><span>{t.date(p.nextExpiry)}</span><small>{expiryLabel(t, p.nextExpiry)}</small></> : "—"}</td>
         <td><StatusBadge product={p} /></td>
       </tr>)}</tbody></table>
@@ -214,10 +241,11 @@ export function Count() {
 // ---------- supplier orders ----------
 export function Orders() {
   const t = useT();
-  const { request, notify, setError, load, data } = useApp();
+  const { request, notify, setError, load, data, warehouse } = useApp();
   const [scope, setScope] = useState("active");
   const [orders, setOrders] = useState([]);
   const [receiving, setReceiving] = useState(null);
+  const [messaging, setMessaging] = useState(null);
   const refresh = () => request(`/v1/reorders${scope === "active" ? "?status=active" : ""}`).then((r) => setOrders(r.items)).catch((e) => setError(t.err(e)));
   useEffect(() => { refresh(); }, [scope, data.dashboard]);
 
@@ -239,11 +267,13 @@ export function Orders() {
       <div className="grow"><b>{o.productName}</b><small>{t.num(o.quantity)} {o.unit} · {o.supplier || "—"}{o.supplierPhone ? ` · ${o.supplierPhone}` : ""}</small><small>{t("colOrdered")} {t.dateTime(o.createdAt)} · {t("colUpdated")} {t.dateTime(o.updatedAt)}</small></div>
       <span className={`badge ${cls[o.status]}`}>{t(`status_${o.status}`)}</span>
       {(o.status === "PENDING" || o.status === "CONFIRM_SHIPPING") && <div className="order-actions">
+        <button className="secondary smallbtn" onClick={() => setMessaging(messaging === o.id ? null : o.id)}><Send size={13} />{t("sendMessage")}</button>
         {o.supplierPhone && <a className="secondary smallbtn" href={`tel:${o.supplierPhone.replace(/\s+/g, "")}`}>{t("callSupplier")}</a>}
         {o.status === "PENDING" && <button className="secondary smallbtn" onClick={() => update(o, "CONFIRM_SHIPPING")}>{t("markConfirmShipping")}</button>}
         <button className="primary smallbtn" onClick={() => setReceiving({ order: o, qty: o.quantity, expiryDate: "" })}>{t("markReceived")}</button>
         <button className="textbutton danger smallbtn" onClick={() => update(o, "CANCELLED")}>{t("cancelOrder")}</button>
       </div>}
+      {messaging === o.id && <div className="order-message"><SupplierMessage phone={o.supplierPhone} text={orderMessage(t, { supplier: o.supplier, warehouse: warehouse?.name, product: o.productName, quantity: o.quantity, unit: o.unit })} /></div>}
     </div>) : <div className="empty">{t("noOrders")}</div>}
     {receiving && <div className="modalback" onMouseDown={(e) => { if (e.target === e.currentTarget) setReceiving(null); }}>
       <form className="modal" onSubmit={(e) => { e.preventDefault(); update(receiving.order, "RECEIVED", { receivedQuantity: Number(receiving.qty), expiryDate: receiving.expiryDate }); }}>
@@ -267,7 +297,7 @@ export function Alerts() {
     <div className="panelhead"><div><h3>{t("alerts")}</h3><p>{t("alertsSub")}</p></div><div className="row-gap"><span className="badge amber">{t("activeCount", { n: data.alerts.length })}</span><button className="secondary smallbtn" onClick={() => setPage("settings")}>{t("alertSettings")}</button></div></div>
     {data.alerts.map((a, i) => {
       const product = data.products.find((p) => p.id === a.productId);
-      const canReorder = product && !product.orderStatus && (a.type === "LOW_STOCK" || a.type === "OUT_OF_STOCK");
+      const canReorder = product && !product.orderStatus && ["LOW_STOCK", "OUT_OF_STOCK", "RUNNING_OUT"].includes(a.type);
       return <AlertRow key={`${a.type}-${a.productId}-${a.batchId || ""}-${i}`} a={a} action={<div className="row-gap">
         {canReorder && <button className="primary smallbtn" onClick={() => openReorder(product)}>{t("reorder")}</button>}
         <button className="secondary smallbtn" onClick={() => openProduct(a.productId)}>{t("view")}</button></div>} />;

@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { X, ArrowDownToLine, ArrowUpFromLine, Truck, Pencil, Archive, Package } from "lucide-react";
-import { useT, useApp, StatusBadge, expiryLabel } from "../lib.jsx";
+import { X, ArrowDownToLine, ArrowUpFromLine, Truck, Pencil, Archive, Package, Sparkles, QrCode } from "lucide-react";
+import { useT, useApp, StatusBadge, expiryLabel, runOutLabel } from "../lib.jsx";
 
 export default function ProductDetail({ id, onClose }) {
   const t = useT();
-  const { request, setPage, setPrefill, setError, notify, load, openReorder, openEdit, user } = useApp();
+  const { request, setPage, setPrefill, setError, notify, load, openReorder, openEdit, openLabels, user } = useApp();
   const [p, setP] = useState(null);
   const [photo, setPhoto] = useState(0);
 
@@ -29,6 +29,10 @@ export default function ProductDetail({ id, onClose }) {
             : <div className="nophoto"><Package size={30} /><small>{t("noPhotos")}</small></div>}
         </div>
         <div className="detail-qty"><div><small>{t("onHand")}</small><strong>{t.num(p.quantity)} <span>{p.unit}</span></strong></div><StatusBadge product={p} /></div>
+        {p.dailyUsage > 0 && <div className={`forecast-card ${p.daysLeft <= 7 ? "urgent" : ""}`}>
+          <Sparkles size={18} />
+          <div><b>{runOutLabel(t, p)}</b><small>{t("usagePerDay", { n: p.dailyUsage, unit: p.unit })}{p.suggestedOrder > 0 ? ` · ${t("suggestOrder", { n: p.suggestedOrder, unit: p.unit })}` : ""}</small></div>
+        </div>}
         {p.description && <p className="detail-desc">{p.description}</p>}
         {row(t("barcode"), p.barcode)}
         {row(t("sku"), p.sku)}
@@ -45,6 +49,7 @@ export default function ProductDetail({ id, onClose }) {
           <button className="primary" onClick={() => go("dispatch")} disabled={p.quantity <= 0}><ArrowUpFromLine size={16} />{t("dispatch")}</button>
           <button className="secondary" onClick={() => { onClose(); openReorder(p); }} disabled={Boolean(p.activeReorder)}><Truck size={16} />{t("reorder")}</button>
           <button className="secondary" onClick={() => { onClose(); openEdit(p); }}><Pencil size={16} />{t("editProduct")}</button>
+          <button className="secondary" onClick={() => { onClose(); openLabels([p.id]); }}><QrCode size={16} />{t("printLabel")}</button>
           {user?.role === "OWNER" && <button className="textbutton danger" onClick={archive}><Archive size={16} />{t("archive")}</button>}
         </div>
       </div>}
