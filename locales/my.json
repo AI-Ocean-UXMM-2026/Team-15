@@ -215,5 +215,10 @@
   "supplierNameRequired": "ပေးသွင်းသူအမည်ထည့်ပါ။",
   "supplierAdded": "ပေးသွင်းသူထည့်ပြီး ရွေးထားပါပြီ",
   "supplierPlaceholder": "ပေးသွင်းသူရွေးရန်",
-  "photoInvalid": "JPG၊ PNG သို့မဟုတ် WebP ဓာတ်ပုံ 12 MB အထိ ရွေးပါ။"
+  "photoInvalid": "JPG၊ PNG သို့မဟုတ် WebP ဓာတ်ပုံ 12 MB အထိ ရွေးပါ။",
+  "addItemInformation": "ပစ္စည်းအချက်အလက်ထည့်ရန်",
+  "barcodeDetected": "Barcode ဖတ်ပြီးပါပြီ",
+  "status": "အခြေအနေ",
+  "speakLanguages": "အင်္ဂလိပ် သို့မဟုတ် မြန်မာလို ရှင်းလင်းစွာပြောပါ",
+  "voiceEntryHint": "ပစ္စည်းအမည်၊ ဖော်ပြချက်နှင့် အရေအတွက်ကို ပြောပါ။ မသိမ်းမီ အချက်အလက်များ ပြင်ဆင်နိုင်ပါသည်။"
 }

@@ -319,5 +319,10 @@
   "supplierAdded": "Supplier added and selected",
   "supplierPlaceholder": "Choose a supplier",
   "imageProcessing": "Preparing your photo…",
-  "imageReadError": "We could not read that image. Please choose another photo."
+  "imageReadError": "We could not read that image. Please choose another photo.",
+  "addItemInformation": "Add item information",
+  "barcodeDetected": "Barcode detected",
+  "status": "Status",
+  "speakLanguages": "Speak clearly in English or Burmese",
+  "voiceEntryHint": "Speak the product name, description and quantity. You can edit everything before saving."
 }

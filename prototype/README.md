@@ -5,7 +5,7 @@ The application entry point is **`../index.html`**, not a separate prototype HTM
 ## Core walkthrough
 
 1. Home → central Scan. Manual entry is above the centered scanner.
-2. Choose Noodles (or scan/type a code). The result screen shows the code and Push to Talk together.
+2. Choose Noodles (or scan/type a code). The Add item information screen shows a barcode/status card and a large bottom Push to Talk action above Type manually. Tap to start/stop recording; an alternate hold control and explicit sample phrase remain available.
 3. Use the sample voice phrase → review. Retry preserves the code; Edit opens the full form.
 4. Confirm → Complete item details. Add a camera/gallery photo, choose/create a supplier, and fill optional details. Location is omitted. Add to the receiving list; stock remains unchanged.
 5. Add Water and Bread. Edit expiry/remarks, then Save delivery.

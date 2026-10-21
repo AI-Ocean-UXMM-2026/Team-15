@@ -38,6 +38,16 @@ const server = http.createServer((req, res) => {
       await click(name);
       assert.ok((await page.locator('.detected-banner').innerText()).includes(barcode));
       assert.ok(await page.getByRole('button',{name:'Hold to talk',exact:true}).isVisible());
+      if(!index){
+        const talk=page.getByRole('button',{name:'Push to Talk',exact:true});
+        const talkBounds=await talk.boundingBox(),manualBounds=await page.getByRole('button',{name:'Type manually',exact:true}).boundingBox();
+        assert.ok(talkBounds.height>=110&&talkBounds.y<manualBounds.y,'Large voice action precedes manual entry');
+        await page.evaluate(()=>{window.originalRecognition=window.SpeechRecognition;window.voiceStarts=0;window.voiceStops=0;window.SpeechRecognition=class{start(){window.voiceStarts++}stop(){window.voiceStops++;setTimeout(()=>this.onend?.(),0)}abort(){}}});
+        await talk.click();assert.equal(await talk.getAttribute('aria-pressed'),'true');await talk.click();
+        await page.waitForFunction(()=>document.querySelector('#tap-record')?.getAttribute('aria-pressed')==='false'&&!document.querySelector('#tap-record').disabled);
+        assert.deepEqual(await page.evaluate(()=>[window.voiceStarts,window.voiceStops]),[1,1]);
+        await page.evaluate(()=>{window.SpeechRecognition=window.originalRecognition});
+      }
       await click('Use sample voice phrase');
       if(!index){await click('Record again');assert.ok((await page.locator('.detected-banner').innerText()).includes(barcode));await click('Use sample voice phrase')}
       await click('Confirm & continue');
