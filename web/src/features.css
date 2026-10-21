@@ -255,3 +255,24 @@ input.num{width:90px;min-height:36px;border:1px solid #dce6df;border-radius:7px;
 .cat-chip{border:1px dashed #9fcbb4;background:#f6fbf8;color:#176a59;border-radius:20px;padding:5px 10px;font-size:10px;font-weight:750;display:inline-flex;align-items:center;gap:5px}
 .cat-edit{display:flex;gap:6px;align-items:center}
 .cat-edit select{min-height:32px;border:1px solid #9fcbb4;border-radius:8px;padding:4px 8px;font-size:11px}
+
+/* expiry scan (OCR) */
+.expiry-field .input-with-button input{flex:1}
+.scan-date{white-space:nowrap}
+.spin{animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.scan-result{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:11px;line-height:1.5;border-radius:8px;padding:8px 10px;margin-top:8px}
+.scan-result.reading{background:#eef4ff;color:#2f5ea8}
+.scan-result.ok{background:#e8f6ed;color:#19744e}
+.scan-result.check{background:#fff4df;color:#9e6c20}
+.scan-result.bad{background:#fff0f1;color:#b43b49}
+.scan-result button{margin-left:auto;border:0;background:#ffffffb0;border-radius:6px;padding:4px 8px;font-size:10px;font-weight:700;color:inherit;display:inline-flex;gap:4px;align-items:center}
+/* desktop supplier list */
+.supplier-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;padding:16px 18px}
+.supplier-card{border:1px solid #e2eae5;border-radius:12px;padding:14px;display:grid;gap:10px}
+.supplier-card b,.supplier-card small{display:block}
+.supplier-card b{font-size:13px}
+.supplier-card small{font-size:10px;color:#87958d;margin-top:3px;line-height:1.5}
+.supplier-links{display:flex;flex-wrap:wrap;gap:6px}
+.supplier-links a{font-size:11px;color:#176a59;background:#eef6f1;border-radius:6px;padding:4px 8px;text-decoration:none}
+.supplier-form .formactions{flex-wrap:wrap}

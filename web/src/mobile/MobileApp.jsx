@@ -9,6 +9,7 @@ import { useT, useApp, AppCtx, ExpiryInput, expiryLabel, runOutLabel, todayISO, 
 import { I18n } from "../lib.jsx";
 import PushToTalk from "../components/PushToTalk.jsx";
 import OrderStatusSelect from "../components/OrderStatusSelect.jsx";
+import SupplierForm, { supplierLinks } from "../components/SupplierForm.jsx";
 import { ScanPage } from "../pages.jsx";
 import "./mobile.css";
 
@@ -308,28 +309,28 @@ function SuppliersScreen({ go, initialTab = "contacts" }) {
   const [orders, setOrders] = useState([]);
   const refresh = () => request("/v1/reorders").then((r) => setOrders(r.items)).catch((e) => setError(t.err(e)));
   useEffect(() => { refresh(); }, [data.dashboard]);
-  // Suppliers are stored on products; group them into contact cards.
-  const suppliers = useMemo(() => {
-    const map = new Map();
-    for (const p of data.products) {
-      if (!p.supplier) continue;
-      const s = map.get(p.supplier) || { name: p.supplier, phone: p.supplierPhone, email: p.supplierEmail, products: [] };
-      s.phone ||= p.supplierPhone; s.email ||= p.supplierEmail; s.products.push(p);
-      map.set(p.supplier, s);
-    }
-    return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
-  }, [data.products]);
+  const [suppliers, setSuppliers] = useState([]);
+  useEffect(() => { request("/v1/suppliers").then((r) => setSuppliers(r.items)).catch((e) => setError(t.err(e))); }, [data.products]);
   const shown = orders.filter((o) => !only || o.supplier === only);
   const cls = { PENDING: "warning", CONFIRM_SHIPPING: "blue", RECEIVED: "", CANCELLED: "bad" };
   return <>
     <Heading title={t("supplierTitle")} desc={t("supplierSub")} />
+    <button className="m-btn secondary full" onClick={() => go("supplierForm")}><Plus size={19} />{t("addSupplier")}</button>
+    <div style={{ height: 14 }} />
     <Chips value={tab} onChange={(v) => { setTab(v); setOnly(""); }} items={[["contacts", "contacts"], ["orders", "orders"]]} />
-    {tab === "contacts" ? (suppliers.length ? suppliers.map((s) => <div className="m-card" key={s.name}>
-      <div className="m-supplier-heading"><span className="m-supplier-icon"><Truck size={22} /></span><div><h3>{s.name}</h3><p>{t("supplierProducts", { n: s.products.length })}</p></div></div>
+    {tab === "contacts" ? (suppliers.length ? suppliers.map((s) => <div className="m-card" key={s.id}>
+      <button className="m-supplier-heading" style={{ width: "100%", background: "none", textAlign: "left", padding: 0 }} onClick={() => go("supplierForm", { id: s.id })}>
+        <span className="m-supplier-icon"><Truck size={22} /></span><div className="m-grow"><h3>{s.name}</h3><p>{s.contactPerson || t("supplierProducts", { n: s.productCount })}</p></div><Pencil size={15} color="#839b8e" /></button>
       <Kv label={t("contactNumber")} value={s.phone} />
       {s.email && <Kv label={t("email")} value={s.email} />}
-      <Kv label={t("products")} value={s.products.map((p) => p.name).join(", ")} />
-      <button className="m-text-btn" onClick={() => { setTab("orders"); setOnly(s.name); }}>{t("orders")}<ChevronRight size={15} /></button>
+      {s.social && <Kv label={t("socialLink")} value={s.social} />}
+      {s.website && <Kv label={t("website")} value={s.website} />}
+      {s.address && <Kv label={t("address")} value={s.address} />}
+      <Kv label={t("products")} value={s.products.map((p) => p.name).join(", ") || t("noLinkedProducts")} />
+      <div className="m-row m-between">
+        <button className="m-text-btn" onClick={() => { setTab("orders"); setOnly(s.name); }}>{t("orders")}{s.openOrders ? ` (${t.num(s.openOrders)})` : ""}<ChevronRight size={15} /></button>
+        {s.phone && <a className="m-text-btn" href={supplierLinks(s).tel}><Phone size={15} />{t("callSupplier")}</a>}
+      </div>
     </div>) : <Empty icon={Truck} title={t("noSuppliers")} desc={t("noSuppliersHint")} />)
       : (shown.length ? shown.map((o) => {
         const p = data.products.find((x) => x.id === o.productId);
@@ -342,6 +343,18 @@ function SuppliersScreen({ go, initialTab = "contacts" }) {
             </>}
           </div></div>;
       }) : <Empty icon={Truck} title={t("noOrders")} desc={t("orderFlowHint")} />)}
+  </>;
+}
+
+function SupplierFormScreen({ id, go }) {
+  const t = useT();
+  const { request, setError } = useApp();
+  const [s, setS] = useState(id ? null : {});
+  useEffect(() => { if (id) request("/v1/suppliers").then((r) => setS(r.items.find((x) => x.id === id) || {})).catch((e) => setError(t.err(e))); }, [id]);
+  if (!s) return <p className="m-caption">{t("loading")}</p>;
+  return <>
+    <Heading title={id ? s.name : t("addSupplier")} desc={t("supplierFormHint")} />
+    <div className="m-embed m-supplier-form"><SupplierForm compact supplier={id ? s : null} onSaved={() => go("suppliers")} onDeleted={() => go("suppliers")} onCancel={() => go("suppliers")} /></div>
   </>;
 }
 
@@ -509,7 +522,7 @@ export default function MobileApp() {
 
   const titles = {
     product: t("productDetailsT"), reorder: t("reorderStock"), movement: t({ in: "qaReceive", out: "qaShip", count: "countShort" }[top.params.mode] || "qaReceive"),
-    alerts: t("alerts"), history: t("history"), ptt: t("ptt"), scan: t("scan"), warehouseSettings: t("myWarehouse"),
+    alerts: t("alerts"), history: t("history"), ptt: t("ptt"), scan: t("scan"), warehouseSettings: t("myWarehouse"), supplierForm: t(top.params.id ? "editSupplier" : "addSupplier"),
     alertSettings: t("alertPreferences"), shelfLife: t("shelfLifeTitle"), inventory: t("inventory"), suppliers: t("supplierNav"), settings: t("settings")
   };
   const isRoot = ROOTS.includes(top.screen);
@@ -534,6 +547,7 @@ export default function MobileApp() {
         {top.screen === "movement" && <MovementScreen {...props} />}
         {top.screen === "suppliers" && <SuppliersScreen {...props} initialTab={top.params.tab === "orders" ? "orders" : "contacts"} />}
         {top.screen === "settings" && <SettingsScreen {...props} />}
+        {top.screen === "supplierForm" && <SupplierFormScreen {...props} />}
         {top.screen === "warehouseSettings" && <WarehouseScreen {...props} />}
         {top.screen === "alertSettings" && <AlertSettingsScreen {...props} />}
         {top.screen === "shelfLife" && <ShelfLifeScreen {...props} />}

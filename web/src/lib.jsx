@@ -1,4 +1,5 @@
-import React, { createContext, useContext } from "react";
+import React, { createContext, useContext, useRef, useState } from "react";
+import { Camera, Loader2, RotateCcw } from "lucide-react";
 import { translate, formatNumber, categoryKey } from "./text.ts";
 
 // Same-origin by default: Vite proxies /v1 to the local API in dev, and Vercel rewrites it in production.
@@ -91,15 +92,44 @@ const QUICK = [["q7d", { days: 7 }], ["q1m", { months: 1 }], ["q3m", { months: 3
 /** Expiry date input with one-tap +7 days / +1 / +3 / +6 months / +1 year shortcuts. */
 export function ExpiryInput({ label, value, onChange, base, shelfLifeDays }) {
   const t = useT();
+  const fileRef = useRef(null);
+  const [scan, setScan] = useState(null); // null | {state:"reading"} | {state:"done", ...result} | {state:"none"|"error"}
   const auto = !value && autoExpiry(shelfLifeDays, base);
-  return <label className="field expiry-field"><span>{label}</span>
-    <input type="date" value={value || ""} onChange={(e) => onChange(e.target.value)} />
+
+  // Photo of the package → OCR in the browser → the date next to EXP / BEST BEFORE / USE BY.
+  const readPhoto = async (file) => {
+    if (!file) return;
+    setScan({ state: "reading" });
+    try {
+      const { readExpiryFromPhoto } = await import("./expiryOcr.js");
+      const r = await readExpiryFromPhoto(file, todayISO());
+      if (r.expiryDate) { onChange(r.expiryDate); setScan({ state: "done", ...r }); }
+      else setScan({ state: "none", text: r.text });
+    } catch {
+      setScan({ state: "error" });
+    }
+  };
+
+  return <div className="field expiry-field"><span>{label}</span>
+    <div className="input-with-button">
+      <input type="date" value={value || ""} onChange={(e) => { onChange(e.target.value); setScan(null); }} aria-label={label} />
+      <button type="button" className="secondary scan-date" disabled={scan?.state === "reading"} onClick={() => fileRef.current?.click()}>
+        {scan?.state === "reading" ? <Loader2 size={16} className="spin" /> : <Camera size={16} />}{t("scanDate")}</button>
+      <input ref={fileRef} type="file" accept="image/*" capture="environment" hidden onChange={(e) => { readPhoto(e.target.files?.[0]); e.target.value = ""; }} />
+    </div>
+    {scan?.state === "reading" && <small className="scan-result reading">{t("scanReading")}</small>}
+    {scan?.state === "done" && <small className={`scan-result ${scan.sure ? "ok" : "check"}`}>
+      {t(scan.sure ? "scanFound" : "scanGuess", { date: t.date(scan.expiryDate), text: scan.matched })}
+      <button type="button" onClick={() => fileRef.current?.click()}><RotateCcw size={12} />{t("retry")}</button></small>}
+    {(scan?.state === "none" || scan?.state === "error") && <small className="scan-result bad">
+      {t(scan.state === "none" ? "scanNone" : "scanError")}
+      <button type="button" onClick={() => fileRef.current?.click()}><RotateCcw size={12} />{t("retry")}</button></small>}
     <div className="quick-dates">{QUICK.map(([k, delta]) => {
       const d = addToDate(base, delta);
-      return <button type="button" key={k} className={value === d ? "chip active" : "chip"} onClick={() => onChange(d)}>{t(k)}</button>;
-    })}{value && <button type="button" className="chip ghost" onClick={() => onChange("")}>{t("clearDate")}</button>}</div>
+      return <button type="button" key={k} className={value === d ? "chip active" : "chip"} onClick={() => { onChange(d); setScan(null); }}>{t(k)}</button>;
+    })}{value && <button type="button" className="chip ghost" onClick={() => { onChange(""); setScan(null); }}>{t("clearDate")}</button>}</div>
     {auto && <small className="fieldhint auto-expiry">{t("autoExpiryHint", { date: t.date(auto), n: shelfLifeDays })}</small>}
-  </label>;
+  </div>;
 }
 
 /** "Runs out in 6 days" from the server's restock forecast, or "" when there is no sales history. */

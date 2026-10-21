@@ -220,6 +220,10 @@ const ENDPOINTS = [
   ["POST", "/v1/voice/parse", true, "Parse a push-to-talk transcript"],
   ["GET", "/v1/movements", true, "Movement and adjustment history"],
   ["GET", "/v1/alerts", true, "Low-stock, out-of-stock and expiry alerts"],
+  ["GET", "/v1/suppliers", true, "Supplier list with linked products"],
+  ["POST", "/v1/suppliers", true, "Add supplier"],
+  ["PATCH", "/v1/suppliers/:id", true, "Edit supplier (updates linked products)"],
+  ["DELETE", "/v1/suppliers/:id", true, "Delete supplier (owner only)"],
   ["GET", "/v1/reorders", true, "Supplier reorders (?status=active)"],
   ["POST", "/v1/reorders", true, "Reorder from supplier"],
   ["PATCH", "/v1/reorders/:id", true, "Update reorder status"],
@@ -328,6 +332,7 @@ app.get("/v1/products", async (req, res) => {
 app.post("/v1/products", async (req, res) => {
   const b = req.body || {};
   const fields = productFields(b);
+  await applySupplier(req.db, req.warehouse._id, fields, b.supplierId);
   const initial = cleanInt(b.initialQuantity ?? 0);
   if (initial === null) fail(400, "VALIDATION_ERROR", "Quantity must be a non-negative whole number.");
   try {
@@ -390,6 +395,7 @@ app.get("/v1/products/:id", async (req, res) => {
 app.patch("/v1/products/:id", async (req, res) => {
   const old = await findProduct(req.db, req.warehouse._id, req.params.id);
   const fields = productFields(req.body || {}, old);
+  await applySupplier(req.db, req.warehouse._id, fields, req.body?.supplierId);
   try {
     const p = await req.db.collection("products").findOneAndUpdate({ _id: old._id }, { $set: { ...fields, updatedAt: new Date() } }, { returnDocument: "after" });
     res.json(productOut(p));
@@ -559,6 +565,90 @@ app.get("/v1/alerts", async (req, res) => {
     }))
   ];
   res.json({ items, expiryAlertDays: days });
+});
+
+// ---------- suppliers ----------
+// Suppliers are their own records; products keep a copy of the name/phone/email so older screens
+// and order messages keep working, and that copy is refreshed whenever the supplier is edited.
+const SUPPLIER_FIELDS = { name: 160, contactPerson: 120, phone: 60, email: 160, social: 200, website: 200, address: 500, note: 1000 };
+function supplierFields(b, old = {}) {
+  const f = {};
+  for (const [k, max] of Object.entries(SUPPLIER_FIELDS)) f[k] = b[k] !== undefined ? str(b[k], max) : old[k] ?? "";
+  if (!f.name) fail(400, "VALIDATION_ERROR", "Supplier name is required.");
+  if (f.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email)) fail(400, "VALIDATION_ERROR", "Enter a valid supplier email.");
+  return f;
+}
+async function syncProductsToSupplier(db, s) {
+  await db.collection("products").updateMany(
+    { warehouseId: s.warehouseId, supplierId: s._id },
+    { $set: { supplier: s.name, supplierPhone: s.phone, supplierEmail: s.email, updatedAt: new Date() } }
+  );
+}
+/** Turns supplier names typed on products before suppliers existed into supplier records (runs once per name). */
+async function adoptProductSuppliers(db, warehouseId) {
+  const loose = await db.collection("products").find({ warehouseId, archived: false, supplier: { $gt: "" }, supplierId: { $exists: false } }, { projection: { supplier: 1, supplierPhone: 1, supplierEmail: 1 } }).toArray();
+  for (const p of loose) {
+    let s = await db.collection("suppliers").findOne({ warehouseId, name: p.supplier });
+    if (!s) {
+      s = { _id: new ObjectId(), warehouseId, ...supplierFields({ name: p.supplier, phone: p.supplierPhone, email: p.supplierEmail }), createdAt: new Date(), updatedAt: new Date() };
+      try { await db.collection("suppliers").insertOne(s); } catch (e) { if (e?.code !== 11000) throw e; s = await db.collection("suppliers").findOne({ warehouseId, name: p.supplier }); }
+    }
+    await db.collection("products").updateOne({ _id: p._id }, { $set: { supplierId: s._id } });
+  }
+}
+/** Copies the chosen supplier onto product fields; an empty id clears the link. */
+async function applySupplier(db, warehouseId, fields, supplierId) {
+  if (supplierId === undefined) return;
+  if (!supplierId) { Object.assign(fields, { supplierId: null }); return; }
+  const s = await db.collection("suppliers").findOne({ _id: oid(String(supplierId)), warehouseId });
+  if (!s) fail(400, "VALIDATION_ERROR", "Choose a supplier from the list.");
+  Object.assign(fields, { supplierId: s._id, supplier: s.name, supplierPhone: s.phone, supplierEmail: s.email });
+}
+
+app.get("/v1/suppliers", async (req, res) => {
+  const { db, warehouse } = req;
+  await adoptProductSuppliers(db, warehouse._id);
+  const [suppliers, products, open] = await Promise.all([
+    db.collection("suppliers").find({ warehouseId: warehouse._id }).sort({ name: 1 }).toArray(),
+    db.collection("products").find({ warehouseId: warehouse._id, archived: false, supplierId: { $ne: null } }, { projection: { name: 1, supplierId: 1 } }).toArray(),
+    db.collection("reorders").aggregate([
+      { $match: { warehouseId: warehouse._id, status: { $in: ["PENDING", "CONFIRM_SHIPPING"] } } },
+      { $group: { _id: "$supplier", n: { $sum: 1 } } }
+    ]).toArray()
+  ]);
+  const openBy = new Map(open.map((o) => [o._id, o.n]));
+  res.json({ items: suppliers.map((s) => {
+    const mine = products.filter((p) => String(p.supplierId) === String(s._id));
+    return { ...out(s), productCount: mine.length, products: mine.map((p) => ({ id: String(p._id), name: p.name })), openOrders: openBy.get(s.name) || 0 };
+  }) });
+});
+
+app.post("/v1/suppliers", async (req, res) => {
+  const now = new Date();
+  const doc = { _id: new ObjectId(), warehouseId: req.warehouse._id, ...supplierFields(req.body || {}), createdAt: now, updatedAt: now };
+  try { await req.db.collection("suppliers").insertOne(doc); }
+  catch (e) { if (e?.code === 11000) fail(409, "SUPPLIER_EXISTS", "A supplier with this name already exists."); throw e; }
+  res.status(201).json({ ...out(doc), productCount: 0, products: [], openOrders: 0 });
+});
+
+app.patch("/v1/suppliers/:id", async (req, res) => {
+  const old = await req.db.collection("suppliers").findOne({ _id: oid(req.params.id), warehouseId: req.warehouse._id });
+  if (!old) fail(404, "NOT_FOUND", "Supplier not found.");
+  let s;
+  try {
+    s = await req.db.collection("suppliers").findOneAndUpdate({ _id: old._id }, { $set: { ...supplierFields(req.body || {}, old), updatedAt: new Date() } }, { returnDocument: "after" });
+  } catch (e) { if (e?.code === 11000) fail(409, "SUPPLIER_EXISTS", "A supplier with this name already exists."); throw e; }
+  await syncProductsToSupplier(req.db, s);
+  res.json(out(s));
+});
+
+app.delete("/v1/suppliers/:id", requireOwner, async (req, res) => {
+  const s = await req.db.collection("suppliers").findOne({ _id: oid(req.params.id), warehouseId: req.warehouse._id });
+  if (!s) fail(404, "NOT_FOUND", "Supplier not found.");
+  // Products keep the supplier's name as text; only the link is removed.
+  await req.db.collection("products").updateMany({ warehouseId: s.warehouseId, supplierId: s._id }, { $set: { supplierId: null } });
+  await req.db.collection("suppliers").deleteOne({ _id: s._id });
+  res.status(204).end();
 });
 
 app.get("/v1/reorders", async (req, res) => {

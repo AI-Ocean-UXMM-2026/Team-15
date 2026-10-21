@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Camera, ScanLine, Trash2, X } from "lucide-react";
 import { useT, useApp, Field, Input, ExpiryInput, resizeImage, todayISO, CATEGORIES } from "../lib.jsx";
 import Scanner from "./Scanner.jsx";
+import SupplierForm from "./SupplierForm.jsx";
 
 const blank = (threshold) => ({
   name: "", description: "", sku: "", barcode: "", category: "Food & Beverage", unit: "pcs", fdaCode: "",
@@ -17,7 +18,17 @@ export default function ProductForm({ product, preset, onDone, onCancel }) {
   const [form, setForm] = useState(() => editing ? { ...blank(5), ...product } : { ...blank(warehouse?.settings?.defaultLowStockThreshold ?? 5), ...(preset || {}) });
   const [busy, setBusy] = useState(false);
   const [scanning, setScanning] = useState(false);
+  const [suppliers, setSuppliers] = useState([]);
+  const [newSupplier, setNewSupplier] = useState(false);
   const set = (k) => (v) => setForm((f) => ({ ...f, [k]: v }));
+  useEffect(() => {
+    request("/v1/suppliers").then((r) => {
+      setSuppliers(r.items);
+      // Older products only carry a supplier name; match it to the supplier record.
+      setForm((f) => (f.supplierId || !f.supplier ? f : { ...f, supplierId: r.items.find((s) => s.name === f.supplier)?.id || "" }));
+    }).catch(() => {});
+  }, []);
+  const chosen = suppliers.find((s) => s.id === form.supplierId);
 
   const addPhotos = async (files) => {
     const room = 4 - form.photos.length;
@@ -39,7 +50,7 @@ export default function ProductForm({ product, preset, onDone, onCancel }) {
     e.preventDefault();
     setBusy(true); setError("");
     try {
-      const body = { ...form, lowStockThreshold: Number(form.lowStockThreshold), initialQuantity: Number(form.initialQuantity), shelfLifeDays: Number(form.shelfLifeDays) || 0 };
+      const body = { ...form, supplierId: form.supplierId || "", ...(form.supplierId ? {} : { supplier: "", supplierPhone: "", supplierEmail: "" }), lowStockThreshold: Number(form.lowStockThreshold), initialQuantity: Number(form.initialQuantity), shelfLifeDays: Number(form.shelfLifeDays) || 0 };
       const saved = editing
         ? await request(`/v1/products/${product.id}`, { method: "PATCH", body: JSON.stringify(body) })
         : await request("/v1/products", { method: "POST", body: JSON.stringify(body) });
@@ -76,11 +87,14 @@ export default function ProductForm({ product, preset, onDone, onCancel }) {
         <small className="fieldhint">{t("photoLimit")}</small>
 
         <h4 className="section-title">{t("supplierInfo")}</h4>
-        <Input label={t("supplier")} value={form.supplier} onChange={set("supplier")} />
-        <div className="formgrid">
-          <Input label={t("supplierPhone")} value={form.supplierPhone} onChange={set("supplierPhone")} type="tel" />
-          <Input label={t("supplierEmail")} value={form.supplierEmail} onChange={set("supplierEmail")} type="email" />
-        </div>
+        <Field label={t("supplier")}>
+          <select value={form.supplierId || ""} onChange={(e) => { if (e.target.value === "__new__") setNewSupplier(true); else set("supplierId")(e.target.value); }}>
+            <option value="">{t("supplierPlaceholder")}</option>
+            {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            <option value="__new__">+ {t("addSupplier")}</option>
+          </select>
+        </Field>
+        {chosen && <div className="hint">{[chosen.contactPerson, chosen.phone, chosen.email].filter(Boolean).join(" · ") || chosen.name}</div>}
 
         <h4 className="section-title">{t("stockInfo")}</h4>
         <div className="formgrid">
@@ -98,5 +112,9 @@ export default function ProductForm({ product, preset, onDone, onCancel }) {
       <div className="modalfoot"><button type="button" className="secondary" onClick={onCancel}>{editing ? t("cancel") : t("back")}</button><button type="submit" className="primary" disabled={busy}>{busy ? t("saving") : editing ? t("saveChanges") : t("save")}</button></div>
     </form>
     {scanning && <Scanner onDetected={onScanned} onClose={() => setScanning(false)} />}
+    {newSupplier && <div className="modalback" onMouseDown={(e) => { if (e.target === e.currentTarget) setNewSupplier(false); }}>
+      <div className="modal"><div className="modalhead"><div><div className="overline">{t("supplierTitle").toUpperCase()}</div><h3>{t("addSupplier")}</h3></div><button type="button" className="iconbutton" title={t("close")} onClick={() => setNewSupplier(false)}><X /></button></div>
+        <div className="modalbody"><SupplierForm onCancel={() => setNewSupplier(false)} onSaved={(s) => { setSuppliers((l) => [...l, s].sort((a, b) => a.name.localeCompare(b.name))); set("supplierId")(s.id); setNewSupplier(false); }} /></div></div>
+    </div>}
   </>;
 }

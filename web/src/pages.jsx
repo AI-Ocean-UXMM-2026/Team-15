@@ -4,6 +4,7 @@ import { useT, useApp, I18n, Input, Field, ExpiryInput, StatusBadge, expiryLabel
 import Scanner from "./components/Scanner.jsx";
 import SupplierMessage from "./components/SupplierMessage.jsx";
 import OrderStatusSelect from "./components/OrderStatusSelect.jsx";
+import SupplierForm, { supplierLinks } from "./components/SupplierForm.jsx";
 
 // ---------- restock forecast ----------
 function ForecastPanel() {
@@ -242,6 +243,32 @@ export function Count() {
 }
 
 // ---------- supplier orders ----------
+// ---------- suppliers (desktop) ----------
+function SuppliersPanel() {
+  const t = useT();
+  const { request, setError, data } = useApp();
+  const [list, setList] = useState([]);
+  const [editing, setEditing] = useState(null); // null | {} (new) | supplier
+  const refresh = () => request("/v1/suppliers").then((r) => setList(r.items)).catch((e) => setError(t.err(e)));
+  useEffect(() => { refresh(); }, [data.products]);
+  return <div className="panel">
+    <div className="panelhead"><div><h3>{t("supplierTitle")}</h3><p>{t("supplierSub")}</p></div><button className="primary" onClick={() => setEditing({})}><Plus size={16} />{t("addSupplier")}</button></div>
+    {list.length ? <div className="supplier-grid">{list.map((s) => {
+      const l = supplierLinks(s);
+      return <div className="supplier-card" key={s.id}>
+        <div className="row-gap"><span className="alerticon mint"><Truck size={17} /></span><div className="grow"><b>{s.name}</b><small>{s.contactPerson || t("supplierProducts", { n: s.productCount })}</small></div>
+          <button className="secondary smallbtn" onClick={() => setEditing(s)}>{t("edit")}</button></div>
+        <div className="supplier-links">{l.tel && <a href={l.tel}>{s.phone}</a>}{l.mail && <a href={l.mail}>{s.email}</a>}{l.social && <a href={l.social} target="_blank" rel="noreferrer">Facebook</a>}{l.web && <a href={l.web} target="_blank" rel="noreferrer">{t("website")}</a>}</div>
+        <small className="muted">{s.products.map((p) => p.name).join(", ") || t("noLinkedProducts")}{s.openOrders ? ` · ${t("openOrdersN", { n: s.openOrders })}` : ""}</small>
+      </div>;
+    })}</div> : <div className="empty">{t("noSuppliersHint")}</div>}
+    {editing && <div className="modalback" onMouseDown={(e) => { if (e.target === e.currentTarget) setEditing(null); }}>
+      <div className="modal"><div className="modalhead"><div><div className="overline">{t("supplierTitle").toUpperCase()}</div><h3>{editing.id ? editing.name : t("addSupplier")}</h3></div></div>
+        <div className="modalbody"><SupplierForm supplier={editing.id ? editing : null} onCancel={() => setEditing(null)} onSaved={() => { setEditing(null); refresh(); }} onDeleted={() => { setEditing(null); refresh(); }} /></div></div>
+    </div>}
+  </div>;
+}
+
 export function Orders() {
   const t = useT();
   const { request, notify, setError, load, data, warehouse } = useApp();
@@ -261,7 +288,7 @@ export function Orders() {
   };
   const cls = { PENDING: "amber", CONFIRM_SHIPPING: "blue", RECEIVED: "green", CANCELLED: "red" };
 
-  return <div className="panel">
+  return <><SuppliersPanel /><div className="panel">
     <div className="panelhead"><div><h3>{t("orders")}</h3><p>{t("ordersSub")}</p></div>
       <div className="segmented"><button className={scope === "active" ? "active" : ""} onClick={() => setScope("active")}>{t("openOrders")}</button><button className={scope === "all" ? "active" : ""} onClick={() => setScope("all")}>{t("allOrders")}</button></div></div>
     <div className="hint pad-x">{t("orderFlowHint")}</div>
@@ -287,7 +314,7 @@ export function Orders() {
         <div className="modalfoot"><button type="button" className="secondary" onClick={() => setReceiving(null)}>{t("cancel")}</button><button className="primary">{t("markReceived")}</button></div>
       </form>
     </div>}
-  </div>;
+  </div></>;
 }
 
 // ---------- alerts ----------

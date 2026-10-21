@@ -62,7 +62,8 @@ async function ensureIndexes(db) {
     db.collection("batches").createIndex({ warehouseId: 1, productId: 1, expiryDate: 1 }),
     db.collection("movements").createIndex({ warehouseId: 1, createdAt: -1 }),
     db.collection("movements").createIndex({ warehouseId: 1, productId: 1, createdAt: -1 }),
-    db.collection("reorders").createIndex({ warehouseId: 1, status: 1, createdAt: -1 })
+    db.collection("reorders").createIndex({ warehouseId: 1, status: 1, createdAt: -1 }),
+    db.collection("suppliers").createIndex({ warehouseId: 1, name: 1 }, { unique: true })
   ]);
 }
 

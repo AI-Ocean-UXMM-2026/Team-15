@@ -203,3 +203,6 @@ button.m-pill{border:1px dashed #9fcbb4!important}
 .m-embed .secondary{border-radius:12px;min-height:50px;font-size:13px}
 .m-embed .field span{font-size:12px;color:var(--ink)}
 .m-embed .field input,.m-embed .field select,.m-embed .field textarea{min-height:50px;border-radius:10px;font-size:13px}
+.m-supplier-form .formactions{display:grid;grid-template-columns:1fr;gap:9px;border:0;padding-top:4px}
+.m-supplier-form .formactions .primary{order:-1}
+.m-supplier-form .formgrid{grid-template-columns:1fr;gap:0}
