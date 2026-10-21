@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { LayoutDashboard, Home, Boxes, ArrowDownToLine, ArrowUpFromLine, ClipboardCheck, Bell, History as HistoryIcon, RefreshCw, LogOut, Languages, Package, AlertTriangle, CheckCircle2, Warehouse, Mic, ScanLine, Settings as SettingsIcon, Truck, Plus, X, Sun, Sunset, Moon } from "lucide-react";
 import Scanner from "./components/Scanner.jsx";
@@ -9,6 +9,21 @@ import ProductForm from "./components/ProductForm.jsx";
 import ProductDetail from "./components/ProductDetail.jsx";
 import ReorderDialog from "./components/ReorderDialog.jsx";
 import LabelSheet from "./components/LabelSheet.jsx";
+import MobileApp from "./mobile/MobileApp.jsx";
+
+// Phones get the layout from the designer's V3.1 prototype; wider screens keep the sidebar dashboard.
+function useIsPhone() {
+  const query = "(max-width: 720px)";
+  const [phone, setPhone] = useState(() => window.matchMedia?.(query).matches ?? false);
+  useEffect(() => {
+    const mq = window.matchMedia?.(query);
+    if (!mq) return;
+    const on = (e) => setPhone(e.matches);
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
+  return phone;
+}
 import "./style.css";
 import "./features.css";
 
@@ -21,7 +36,6 @@ const NAV = [
   ["dashboard", LayoutDashboard], ["inventory", Boxes], ["ptt", Mic], ["receive", ArrowDownToLine], ["dispatch", ArrowUpFromLine],
   ["orders", Truck], ["alerts", Bell], ["history", HistoryIcon], ["count", ClipboardCheck]
 ];
-const MOBILE_NAV = [["dashboard", Home, "home"], ["inventory", Boxes, "inventory"], ["scan", ScanLine, "scan"], ["alerts", Bell, "alerts"], ["history", HistoryIcon, "history"]];
 
 function Root() {
   const [lang, setLangState] = useState(store.get("invento-lang") || "my");
@@ -118,6 +132,11 @@ function App() {
   const [prefill, setPrefill] = useState(null);
   const [pttCode, setPttCode] = useState("");
   const [pttRows, setPttRows] = useState([]);
+  const isPhone = useIsPhone();
+  // The phone layout registers its navigator here, so shared dialogs can open phone screens instead of modals.
+  const phoneNav = useRef(null);
+  const nav = () => (isPhone ? phoneNav.current : null);
+  const openProduct = (id) => (nav() ? nav().go("product", { id }) : setDetailId(id));
 
   useEffect(() => {
     const on = () => setOnline(true), off = () => setOnline(false);
@@ -143,17 +162,17 @@ function App() {
   };
   useEffect(() => { load(); }, [token]);
 
-  const setPage = (p) => { setPageState(p); setError(""); setNotice(""); window.scrollTo?.(0, 0); };
+  const setPage = (p) => { setError(""); setNotice(""); if (nav()) { nav().page(p); return; } setPageState(p); window.scrollTo?.(0, 0); };
   const notify = (msg) => { setNotice(msg); setError(""); };
   const ctx = useMemo(() => ({
-    token, user, warehouse, setWarehouse, data, load, request, setPage, notify, setError, logout, prefill, setPrefill,
-    pttRows, setPttRows, setPttCode,
+    token, user, warehouse, setWarehouse, data, load, request, setPage, notify, setError, logout, prefill, setPrefill, error, notice, setNotice, phoneNav,
+    pttRows, setPttRows, setPttCode, pttCode,
     openAdd: (opts) => setAdd({ mode: opts?.mode || "choice", preset: opts?.barcode ? { barcode: opts.barcode } : null }),
-    openProduct: (id) => setDetailId(id),
-    openReorder: (p) => setReorderFor(p),
+    openProduct,
+    openReorder: (p) => (nav() ? nav().go("reorder", { id: p.id }) : setReorderFor(p)),
     openLabels: (ids) => setLabelIds(ids || []),
     openEdit: (p) => request(`/v1/products/${p.id}`).then(setEditing).catch((e) => setError(t.err(e)))
-  }), [token, user, warehouse, data, prefill, pttRows, t.lang]);
+  }), [token, user, warehouse, data, prefill, pttRows, pttCode, t.lang, error, notice, isPhone]);
 
   if (!token) return <Login onAuth={(r) => { store.set("invento-token", r.token); setToken(r.token); setUser(r.user); setWarehouse(r.warehouse); }} />;
 
@@ -163,12 +182,12 @@ function App() {
     setScanning(false);
     try {
       const r = await request(`/v1/products/lookup/${encodeURIComponent(code)}`);
-      if (r.found) { setDetailId(r.product.id); return; }
+      if (r.found) { openProduct(r.product.id); return; }
     } catch { /* fall through to registering the code */ }
     setAdd({ mode: "choice", code });
   };
   return <AppCtx.Provider value={ctx}>
-    <div className={t.lang === "my" ? "app langmy" : "app"}>
+    {isPhone ? <MobileApp /> : <div className={t.lang === "my" ? "app langmy" : "app"}>
       <aside className="sidebar">
         <div className="logo"><span className="logoicon">in</span><span>INVENTO<small>{t("appTagline")}</small></span></div>
         <div className="warehousepill"><Warehouse size={17} /><span><b>{warehouse?.name || "—"}</b><small>{warehouse?.location || "Myanmar"}</small></span></div>
@@ -209,32 +228,23 @@ function App() {
           {page === "settings" && <Settings />}
         </section>
       </main>
-      <nav className="mobile-bottom-nav" aria-label="Primary navigation">
-        {MOBILE_NAV.slice(0, 2).map(([key, Icon, label]) => <MobileTab key={key} k={key} Icon={Icon} label={t(label)} page={page} setPage={setPage} />)}
-        <button className="mobile-add" onClick={() => ctx.openAdd()} aria-label={t("qaAdd")}><Plus size={26} /></button>
-        {MOBILE_NAV.slice(2).map(([key, Icon, label]) => <MobileTab key={key} k={key} Icon={Icon} label={t(label)} page={page} setPage={setPage} badge={key === "alerts" ? data.alerts.length : 0} />)}
-      </nav>
+    </div>}
+    <div className={t.lang === "my" ? "langmy" : ""}>
       {add && <div className="modalback" onMouseDown={(e) => { if (e.target === e.currentTarget) setAdd(null); }}>
         {add.mode === "choice"
           ? <AddChoice code={add.code} onClose={() => setAdd(null)}
               onTyping={() => setAdd({ mode: "manual", preset: add.code ? { barcode: add.code } : null })}
               onPtt={() => { setAdd(null); setPttCode(add.code || ""); setPage("ptt"); }}
               onScan={() => { setAdd(null); setScanning(true); }} />
-          : <ProductForm preset={add.preset} onCancel={() => setAdd(add.preset ? null : { mode: "choice" })} onDone={(p) => { setAdd(null); setDetailId(p.id); }} />}
+          : <ProductForm preset={add.preset} onCancel={() => setAdd(add.preset ? null : { mode: "choice" })} onDone={(p) => { setAdd(null); openProduct(p.id); }} />}
       </div>}
-      {editing && <div className="modalback" onMouseDown={(e) => { if (e.target === e.currentTarget) setEditing(null); }}><ProductForm product={editing} onCancel={() => setEditing(null)} onDone={(p) => { setEditing(null); setDetailId(p.id); }} /></div>}
+      {editing && <div className="modalback" onMouseDown={(e) => { if (e.target === e.currentTarget) setEditing(null); }}><ProductForm product={editing} onCancel={() => setEditing(null)} onDone={(p) => { setEditing(null); openProduct(p.id); }} /></div>}
       {detailId && <ProductDetail key={detailId} id={detailId} onClose={() => setDetailId(null)} />}
       {reorderFor && <ReorderDialog product={reorderFor} onClose={() => setReorderFor(null)} />}
       {labelIds && <LabelSheet initialIds={labelIds} onClose={() => setLabelIds(null)} />}
       {scanning && <Scanner onDetected={onScanned} onClose={() => setScanning(false)} />}
     </div>
   </AppCtx.Provider>;
-}
-
-function MobileTab({ k, Icon, label, page, setPage, badge }) {
-  const t = useT();
-  return <button className={`mobile-tab ${page === k ? "active" : ""}`} onClick={() => setPage(k)} aria-current={page === k ? "page" : undefined}>
-    <Icon size={21} strokeWidth={page === k ? 2.4 : 1.8} /><span>{label}</span>{badge > 0 && <i>{t.num(badge)}</i>}</button>;
 }
 
 createRoot(document.getElementById("root")).render(<Root />);
