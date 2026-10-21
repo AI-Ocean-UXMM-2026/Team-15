@@ -54,8 +54,9 @@ const server = http.createServer((req, res) => {
       assert.ok(await page.getByText('Complete item details',{exact:true}).first().isVisible());
       assert.equal(await page.locator('[data-field="location"]').count(),0);
       assert.equal(await page.getByLabel('Take photo',{exact:true}).getAttribute('capture'),'environment');
-      if(!index){await page.getByLabel('Choose from gallery',{exact:true}).setInputFiles({name:'product.png',mimeType:'image/png',buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aXioAAAAASUVORK5CYII=','base64')});await page.locator('#photo-preview img').waitFor();}
+      if(!index){await page.locator('.photo-picker summary').click();await page.getByLabel('Choose from gallery',{exact:true}).setInputFiles({name:'product.png',mimeType:'image/png',buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aXioAAAAASUVORK5CYII=','base64')});await page.locator('#photo-preview img').waitFor();}
       if(!index){await page.locator('[data-field="supplier"]').selectOption('__new__');await page.locator('[data-supplier-field="name"]').fill('New Supplier Co');await page.locator('[data-supplier-field="contact"]').fill('Contact Person');await page.locator('[data-supplier-field="phone"]').fill('09 123456789');await page.locator('[data-supplier-field="email"]').fill('invalid-email');await click('Save supplier');assert.match(await page.locator('#form-error').innerText(),/valid email/);await page.locator('[data-supplier-field="email"]').fill('orders@example.com');await page.locator('[data-supplier-field="social"]').fill('@new-supplier');await page.locator('[data-supplier-field="address"]').fill('Yangon');await click('Save supplier');assert.ok((await page.locator('[data-field="supplier"] option:checked').innerText()).includes('New Supplier Co'));assert.equal(await page.locator('[data-field="name"]').inputValue(),'Instant noodles');}
+      if(!index)await field('threshold',17);
       await click('Add to receiving list');
       assert.equal(await page.locator('.session-item').count(),index+1);
       const draftState=await state();if(draftState){assert.equal(draftState.products.find(p=>p.id==='NDL-004').qty,0,'Draft confirmation must not change stock');assert.equal(draftState.movements.length,1)}
@@ -64,6 +65,7 @@ const server = http.createServer((req, res) => {
     await click('Save delivery');
     let d=await state();
     assert.equal(d.products.find(p=>p.id==='NDL-004').qty,40);
+    assert.equal(d.products.find(p=>p.id==='NDL-004').threshold,17);
     assert.ok(d.products.find(p=>p.id==='NDL-004').photo.startsWith('data:image/jpeg;base64,'));
     const addedSupplier=d.suppliers.find(s=>s.name==='New Supplier Co');assert.equal(addedSupplier.email,'orders@example.com');assert.equal(addedSupplier.address,'Yangon');assert.equal(d.products.find(p=>p.id==='NDL-004').supplier,addedSupplier.id);
     assert.equal(d.products.find(p=>p.id==='WTR-008').qty,88);
@@ -122,6 +124,8 @@ const server = http.createServer((req, res) => {
     await visual.locator('nav').getByRole('button',{name:'Scan',exact:true}).click();await visual.screenshot({path:path.join(root,'prototype/screenshots/scanner.png')});
     await visual.getByRole('button',{name:'Noodles',exact:true}).click();await visual.screenshot({path:path.join(root,'prototype/screenshots/voice.png')});
     await visual.getByRole('button',{name:'Use sample voice phrase',exact:true}).click();await visual.getByRole('button',{name:'Confirm & continue',exact:true}).click();await visual.screenshot({path:path.join(root,'prototype/screenshots/item-details.png')});
+    await visual.locator('.photo-picker summary').click();await visual.screenshot({path:path.join(root,'prototype/screenshots/item-photo-options.png')});await visual.keyboard.press('Escape');
+    await visual.locator('[data-field="supplier"]').scrollIntoViewIfNeeded();await visual.screenshot({path:path.join(root,'prototype/screenshots/item-details-supplier.png')});
     await visual.getByRole('button',{name:'Add new supplier',exact:true}).click();await visual.screenshot({path:path.join(root,'prototype/screenshots/new-supplier.png')});await visual.getByRole('button',{name:'Cancel',exact:true}).click();
     for(const width of [320,360,390,430,768,1440]){await visual.setViewportSize({width,height:900});assert.equal(await visual.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`Horizontal overflow at ${width}`)}
     await visual.getByRole('button',{name:'Switch language',exact:true}).click();assert.equal(await visual.locator('html').getAttribute('lang'),'my');
