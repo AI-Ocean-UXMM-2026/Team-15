@@ -166,3 +166,12 @@ Preserve both defining visual elements: the original warehouse illustration and 
 - Form validation covers name, email, minimum password length and confirmation. A valid submission clearly states that account access is not connected, rather than simulating a successful login or account creation. No invented credentials, network requests or password persistence.
 - The demo panel uses the existing password-free demo-workspace entry. Privacy copy describes local browser storage and does not claim production warehouse isolation.
 - Authentication/tenant isolation, real loading/error/success responses and an agreed registration API remain the next integration step.
+
+## 9. Product details action chips
+
+Product details places Edit product, QR label and Archive in a compact, right-aligned group beneath Reorder, at the right edge of its content. Chips wrap on narrow viewports, use existing 24×24 SVG icons and retain visible focus states. Archive has a restrained terracotta accent. Stock In / Ship Out remain the first sticky-footer row; Count spans the second row.
+
+- Edit product opens a local metadata dialog for name, description, low-stock threshold and supplier. SKU, barcode, quantities and existing movement records remain intact. Save checks connectivity and the reviewed revision.
+- QR label encodes the actual barcode, falling back to SKU, and previews/downloads an SVG with a four-module quiet zone. The MIT-licensed qrcode-generator 1.4.4 encoder and UTF-8 adapter are vendored locally with provenance/license notices; no remote QR service or package install is required.
+- Archive requires confirmation and marks the product archived in the local prototype store. It disappears from active inventory/alerts/stock-selection lists but retains its quantity, batches and full movement history. Archived codes cannot be received/dispatched; receiving drafts must be removed before archiving their product. Production archive authorization and API semantics remain integration work.
+- Batch expiry shows the actual date and computed days remaining. No forecast card is fabricated because this prototype has no forecast data/logic.

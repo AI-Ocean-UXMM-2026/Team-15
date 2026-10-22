@@ -12,7 +12,7 @@ python -m http.server 8000 --bind 127.0.0.1
 
 For the illustrated account-entry screen, append `#signin` to the page URL. Login/Register tabs and validation work; real account access is explicitly unconnected. Use Open demo warehouse to explore without credentials.
 
-There are no application dependencies or build steps. On small screens the app fills the viewport; desktop shows a phone preview and workflow notes.
+No installation or build step is required. QR labels use a locally vendored MIT-licensed encoder; see `assets/vendor/README.md`. On small screens the app fills the viewport; desktop shows a phone preview and workflow notes.
 
 Start with the central **Scan** button. **Type manually** is at the top of the scanner. Choose a sample product to see its barcode and Push to Talk on the same screen. Open [?] for guidance or the sample voice phrase. Recording opens a review immediately: choose Correct — continue or Wrong — record again. The next screen adds a product photo (camera or gallery), supplier and extra details without a location field. Select a supplier or add one with name, contact person, phone, email, social account and address. Then add the item to the receiving list. Add noodles, water and bread, then **Save delivery**. Stock changes only at that final save.
 
@@ -49,3 +49,5 @@ This is a working local UI prototype, not a production Android application. Data
 The supplied [Figma file](https://www.figma.com/design/V6w22Z09deAA1CbQCSuJjv/Stock-Management-System?node-id=1206-71) could not be retrieved through this environment's network proxy. Tokens and local SVGs are provisional, not verified Anydesignstyem/Reicon assets. Myanmar strings require completion and native-speaker review.
 
 Existing prototype data is imported from legacy keys when available. The new store is `invento-v3`; legacy keys remain intact. Clear that key in browser developer tools to start with fresh sample data.
+
+Product details has right-aligned Edit product / QR label / Archive chips. Editing changes metadata only; QR labels use the real product code; confirmed archival hides the product from active lists while preserving stock and history.

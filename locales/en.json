@@ -356,5 +356,20 @@
   "authNameRequired": "Enter your full name.",
   "authPasswordShort": "Enter a password with at least 8 characters.",
   "authPasswordsMismatch": "The passwords do not match.",
-  "authNotConnected": "Account access is not connected in this prototype. No credentials were sent or saved. Use Open demo warehouse to explore."
+  "authNotConnected": "Account access is not connected in this prototype. No credentials were sent or saved. Use Open demo warehouse to explore.",
+  "productActions": "Product actions",
+  "editProduct": "Edit product",
+  "qrLabel": "QR label",
+  "archive": "Archive",
+  "archiveProduct": "Archive product?",
+  "archiveExplanation": "This product will be hidden from active inventory and stock entry. Its quantity, batches and movement history will be kept. Nothing is permanently deleted.",
+  "productArchived": "Product archived. Movement history is preserved.",
+  "archivedCannotReceive": "This product is archived and cannot receive or dispatch stock.",
+  "archiveDraftConflict": "This product is in your receiving list. Remove that draft before archiving.",
+  "qrEncodedHint": "This QR encodes the product barcode, or its SKU if no barcode is set.",
+  "qrUnavailable": "The QR label could not be generated. Please try again.",
+  "downloadLabel": "Download SVG",
+  "shipOut": "Ship out",
+  "daysLeft": "days left",
+  "closeDialog": "Close dialog"
 }
