@@ -4,15 +4,17 @@ An interactive Android-first inventory prototype for one warehouse and a five-pe
 
 ## Try it
 
-Open `index.html` directly in a modern browser, or serve this directory:
+Open `index.html` in a modern browser, or serve this directory:
 
 ```sh
 python -m http.server 8000 --bind 127.0.0.1
 ```
 
+For the illustrated account-entry screen, append `#signin` to the page URL. Login/Register tabs and validation work; real account access is explicitly unconnected. Use Open demo warehouse to explore without credentials.
+
 There are no application dependencies or build steps. On small screens the app fills the viewport; desktop shows a phone preview and workflow notes.
 
-Start with the central **Scan** button. **Type manually** is at the top of the scanner. Choose a sample product to see its barcode and Push to Talk on the same screen. Use the sample voice phrase, review, and confirm. The next screen adds a product photo (camera or gallery), supplier and extra details without a location field. Select a supplier or add one with name, contact person, phone, email, social account and address. Then add the item to the receiving list. Add noodles, water and bread, then **Save delivery**. Stock changes only at that final save.
+Start with the central **Scan** button. **Type manually** is at the top of the scanner. Choose a sample product to see its barcode and Push to Talk on the same screen. Open [?] for guidance or the sample voice phrase. Recording opens a review immediately: choose Correct — continue or Wrong — record again. The next screen adds a product photo (camera or gallery), supplier and extra details without a location field. Select a supplier or add one with name, contact person, phone, email, social account and address. Then add the item to the receiving list. Add noodles, water and bread, then **Save delivery**. Stock changes only at that final save.
 
 Also try manual registration, Stock In, Stock Out, Count, Supplier orders, alert preferences and History. Setting contains language switching, an offline simulation, a five-member team preview and onboarding. Actual browser offline events also block stock writes.
 
@@ -42,7 +44,7 @@ The suite also supports a system browser using `CHROMIUM_PATH=/path/to/chromium`
 
 ## Current boundaries
 
-This is a working local UI prototype, not a production Android application. Data stays in browser storage. Browser camera scanning requires `BarcodeDetector` and a secure context; typed/sample codes are always available. Optional browser speech recognition is not the planned cloud voice service. The three sample phrases are explicitly demo inputs. Sign-in and the five-person roster are presentation screens, not authentication/authorization. Supplier status updates do not send messages.
+This is a working local UI prototype, not a production Android application. Data stays in browser storage. Browser camera scanning requires `BarcodeDetector` and a secure context; typed/sample codes are always available. Optional browser speech recognition is not the planned cloud voice service. The three sample phrases are explicitly demo inputs. The illustrated Login/Register forms provide local validation but do not send or store credentials; account submission reports the missing backend. The five-person roster is a presentation, not authorization. Supplier status updates do not send messages.
 
 The supplied [Figma file](https://www.figma.com/design/V6w22Z09deAA1CbQCSuJjv/Stock-Management-System?node-id=1206-71) could not be retrieved through this environment's network proxy. Tokens and local SVGs are provisional, not verified Anydesignstyem/Reicon assets. Myanmar strings require completion and native-speaker review.
 

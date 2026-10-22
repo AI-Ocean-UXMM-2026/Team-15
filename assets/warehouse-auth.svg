@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 380" fill="none" role="img" aria-labelledby="title desc">
+<title id="title">A warehouse ready for the day</title><desc id="desc">A mint warehouse with boxes, an inventory checklist and a green confirmation check.</desc>
+<path d="M54 120C79 40 160 27 239 42C330 26 422 42 453 119C496 219 451 329 341 345C262 381 170 346 95 317C20 289 10 211 54 120Z" fill="#DDF1E9"/>
+<path d="m30 305 209-74 230 68-213 66Z" fill="#C6E6D9"/>
+<path d="M64 175C25 127 70 98 87 95M433 121c49 14 49 67 29 85" stroke="#BADDD0" stroke-width="3" stroke-dasharray="7 10"/>
+<circle cx="63" cy="253" r="20" fill="#B9DDD0"/><circle cx="269" cy="29" r="6" fill="#DDF1E9"/>
+<!-- Warehouse walls and roof -->
+<path d="m118 151 113-72 120 74v152H118Z" fill="#F5F7F3" stroke="#B9DED0" stroke-width="3"/>
+<path d="m351 153 61-33v151l-61 34Z" fill="#82B9A7"/>
+<path d="m230 79 69-38 132 77-80 43Z" fill="#B5DCD0" stroke="#194E3C" stroke-width="6" stroke-linejoin="round"/>
+<path d="m105 158 125-79 132 79" stroke="#194E3C" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="154" y="196" width="88" height="110" rx="4" fill="#DDF0E8" stroke="#356956" stroke-width="2.5"/>
+<path d="M155 214h86m-86 18h86m-86 18h86m-86 18h86m-86 18h86" stroke="#356956" stroke-width="2"/>
+<rect x="267" y="201" width="53" height="48" rx="5" fill="#E2F0E8" stroke="#356956" stroke-width="2.5"/>
+<path d="M288 202v46m-20-24h51" stroke="#356956" stroke-width="2"/>
+<rect x="181" y="142" width="94" height="34" rx="9" fill="#174B3A"/>
+<path d="m228 148 12 7v13l-12 7-12-7v-13Zm-12 7 12 7 12-7m-12 7v13" stroke="#ECFAF2" stroke-width="2" stroke-linejoin="round"/>
+<!-- Box shadows -->
+<ellipse cx="124" cy="323" rx="72" ry="10" fill="#8BAE97" opacity=".45"/>
+<!-- Large carton -->
+<path d="m61 270 44-26 50 27-46 27Z" fill="#FFE7AE" stroke="#D6B476" stroke-width="1.5"/>
+<path d="m61 270 48 28v55l-48-28Z" fill="#F2CF83" stroke="#D6B476" stroke-width="1.5"/>
+<path d="m109 298 46-27v56l-46 26Z" fill="#E9BD6E" stroke="#D6B476" stroke-width="1.5"/>
+<path d="m79 260 47 28v20l12-7v-20l-46-28Z" fill="#FFF3CD"/>
+<path d="M73 303v17m7-13v17m7-13v17" stroke="#B38C4D" stroke-width="2" stroke-linecap="round"/>
+<!-- Smaller carton -->
+<path d="m134 308 32-19 37 20-34 20Z" fill="#FFE8B4" stroke="#D6B476" stroke-width="1.5"/>
+<path d="m134 308 35 21v37l-35-21Z" fill="#F5D38E" stroke="#D6B476" stroke-width="1.5"/>
+<path d="m169 329 34-20v39l-34 18Z" fill="#E8BB6C" stroke="#D6B476" stroke-width="1.5"/>
+<path d="m146 301 35 21v14l9-5v-14l-35-21Z" fill="#FFF3D1"/>
+<!-- Inventory clipboard -->
+<rect x="317" y="192" width="132" height="169" rx="23" fill="#0C3227" opacity=".18"/>
+<rect x="308" y="183" width="132" height="169" rx="23" fill="#B4DACE"/>
+<rect x="299" y="174" width="132" height="169" rx="21" fill="white" stroke="#7EB5A2" stroke-width="2.5"/>
+<rect x="338" y="164" width="53" height="20" rx="6" fill="#174B3A"/>
+<rect x="315" y="202" width="32" height="32" rx="9" fill="#DDF1E8"/>
+<path d="m331 208 8 5v10l-8 5-8-5v-10Zm-8 5 8 5 8-5m-8 5v10" stroke="#387562" stroke-width="1.8"/>
+<path d="M361 209h43m-43 13h24" stroke="#C4D9D0" stroke-width="5" stroke-linecap="round"/>
+<path d="M315 249h99" stroke="#E4EBE7" stroke-width="1.5"/>
+<rect x="315" y="263" width="15" height="15" rx="4" fill="#E8F4EC"/><path d="m319 270 3 3 5-6" stroke="#2E6653" stroke-width="2" stroke-linecap="round"/>
+<path d="M345 267h62m-62 11h44" stroke="#C4D9D0" stroke-width="5" stroke-linecap="round"/>
+<rect x="315" y="295" width="15" height="15" rx="4" fill="#E8F4EC"/><path d="m319 302 3 3 5-6" stroke="#2E6653" stroke-width="2" stroke-linecap="round"/>
+<path d="M345 300h49m-49 11h35" stroke="#C4D9D0" stroke-width="5" stroke-linecap="round"/>
+<!-- Confirmation badge -->
+<circle cx="430" cy="174" r="28" fill="#F8FFF4"/><circle cx="430" cy="174" r="21" fill="#E5F4D8"/><path d="m419 174 8 8 15-17" stroke="#4B842B" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

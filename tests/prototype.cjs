@@ -8,7 +8,7 @@ const root = path.resolve(__dirname, '..');
 const server = http.createServer((req, res) => {
   const target = path.resolve(root, '.' + decodeURIComponent(req.url.split('?')[0] === '/' ? '/index.html' : req.url.split('?')[0]));
   if (!target.startsWith(root + path.sep)) { res.writeHead(403).end(); return; }
-  const types = {'.html':'text/html','.js':'text/javascript','.css':'text/css','.json':'application/json','.png':'image/png'};
+  const types = {'.html':'text/html','.js':'text/javascript','.css':'text/css','.json':'application/json','.png':'image/png','.svg':'image/svg+xml'};
   fs.readFile(target,(err,body)=>{if(err){res.writeHead(404).end();return}res.setHeader('Content-Type',types[path.extname(target)]||'application/octet-stream');res.end(body)});
 });
 (async () => {
@@ -19,7 +19,7 @@ const server = http.createServer((req, res) => {
   const page=await context.newPage();
   page.setDefaultTimeout(7000);
   const errors=[]; page.on('pageerror',e=>errors.push(e.message));
-  const click=(name)=>page.getByRole('button',{name,exact:true}).click();
+  const click=async(name)=>{if(name==='Use sample voice phrase'&&!await page.getByRole('button',{name,exact:true}).isVisible())await page.locator('.voice-help summary').click();await page.getByRole('button',{name,exact:true}).click()};
   const field=(name,value)=>page.locator(`[data-field="${name}"]`).fill(String(value));
   const state=()=>page.evaluate(()=>JSON.parse(localStorage.getItem('invento-v3')));
   let passed=0;
@@ -37,20 +37,20 @@ const server = http.createServer((req, res) => {
       if(index)await click('Add another product');
       await click(name);
       assert.ok((await page.locator('.detected-banner').innerText()).includes(barcode));
-      assert.ok(await page.getByRole('button',{name:'Hold to talk',exact:true}).isVisible());
+      assert.equal(await page.locator('[data-action="language"]').count(),0);assert.equal(await page.locator('.voice-help').getAttribute('open'),null);await page.locator('.voice-help summary').click();assert.ok(await page.getByRole('button',{name:'Hold to talk',exact:true}).isVisible());await page.keyboard.press('Escape');assert.equal(await page.locator('.voice-help').getAttribute('open'),null);
       if(!index){
         const talk=page.getByRole('button',{name:'Push to Talk',exact:true});
         const talkBounds=await talk.boundingBox(),manualBounds=await page.getByRole('button',{name:'Type manually',exact:true}).boundingBox();
         assert.ok(talkBounds.height>=110&&talkBounds.y<manualBounds.y,'Large voice action precedes manual entry');
-        await page.evaluate(()=>{window.originalRecognition=window.SpeechRecognition;window.voiceStarts=0;window.voiceStops=0;window.SpeechRecognition=class{start(){window.voiceStarts++}stop(){window.voiceStops++;setTimeout(()=>this.onend?.(),0)}abort(){}}});
+        await page.evaluate(()=>{window.originalRecognition=window.SpeechRecognition;window.voiceStarts=0;window.voiceStops=0;window.SpeechRecognition=class{start(){window.voiceStarts++;window.mockRecognition=this}stop(){window.voiceStops++;setTimeout(()=>this.onend?.(),0)}abort(){}}});
         await talk.click();assert.equal(await talk.getAttribute('aria-pressed'),'true');await talk.click();
         await page.waitForFunction(()=>document.querySelector('#tap-record')?.getAttribute('aria-pressed')==='false'&&!document.querySelector('#tap-record').disabled);
         assert.deepEqual(await page.evaluate(()=>[window.voiceStarts,window.voiceStops]),[1,1]);
-        await page.evaluate(()=>{window.SpeechRecognition=window.originalRecognition});
+        await talk.click();await page.evaluate(()=>window.mockRecognition.onresult({results:[[{transcript:'Instant noodles, 40 packs'}]]}));await page.getByRole('button',{name:'Correct — continue',exact:true}).waitFor();assert.ok((await page.locator('.transcript').innerText()).includes('40 packs'));assert.equal(await state(),null);await click('Wrong — record again');assert.ok((await page.locator('.detected-banner').innerText()).includes(barcode));await page.evaluate(()=>{window.SpeechRecognition=window.originalRecognition});pass('Recording result opens review immediately; wrong returns to voice with barcode preserved');
       }
       await click('Use sample voice phrase');
-      if(!index){await click('Record again');assert.ok((await page.locator('.detected-banner').innerText()).includes(barcode));await click('Use sample voice phrase')}
-      await click('Confirm & continue');
+      if(!index){await click('Wrong — record again');assert.ok((await page.locator('.detected-banner').innerText()).includes(barcode));await click('Use sample voice phrase')}
+      await click('Correct — continue');
       assert.ok(await page.getByText('Complete item details',{exact:true}).first().isVisible());
       assert.equal(await page.locator('[data-field="location"]').count(),0);
       assert.equal(await page.getByLabel('Take photo',{exact:true}).getAttribute('capture'),'environment');
@@ -117,19 +117,39 @@ const server = http.createServer((req, res) => {
     await page.waitForFunction(()=>document.querySelector('#toast').textContent.includes('another tab'));
     await click('Confirm movement');assert.match(await page.locator('#form-error').innerText(),/another tab/);assert.equal((await state()).products.find(p=>p.id==='OIL-012').qty,3);
     pass('Concurrent tab change requires re-review');
+    const auth=await browser.newPage({viewport:{width:390,height:1100}});const authErrors=[];auth.on('pageerror',e=>authErrors.push(e.message));
+    await auth.goto(url+'/#signin');await auth.waitForFunction(()=>document.querySelector('.auth-art img')?.naturalWidth>0);
+    assert.equal(await auth.locator('.auth-art img').evaluate(el=>el.complete&&el.naturalWidth>0),true);
+    const hero=await auth.locator('.auth-hero').boundingBox(),panel=await auth.locator('.auth-panel').boundingBox();assert.ok(panel.y<hero.y+hero.height,'White panel must overlap the illustrated hero');
+    await auth.getByRole('button',{name:'Sign in',exact:true}).click();assert.match(await auth.locator('#auth-error').innerText(),/valid email/);
+    await auth.getByLabel('Email',{exact:true}).fill('owner@example.com');await auth.getByLabel('Password',{exact:true}).fill('short');await auth.getByRole('button',{name:'Sign in',exact:true}).click();assert.match(await auth.locator('#auth-error').innerText(),/8 characters/);
+    await auth.getByLabel('Password',{exact:true}).fill('not-a-real-password');await auth.getByRole('button',{name:'Show password',exact:true}).click();assert.equal(await auth.getByLabel('Password',{exact:true}).getAttribute('type'),'text');await auth.getByRole('button',{name:'Hide password',exact:true}).click();
+    await auth.getByRole('button',{name:'Sign in',exact:true}).click();assert.match(await auth.locator('#auth-error').innerText(),/not connected/);assert.equal(await auth.evaluate(()=>localStorage.getItem('invento-v3')),null);
+    await auth.getByRole('tab',{name:'Register',exact:true}).click();await auth.getByLabel('Full name',{exact:true}).fill('Test Owner');await auth.getByLabel('Confirm password',{exact:true}).fill('wrong-password');await auth.getByRole('button',{name:'Create account',exact:true}).click();assert.match(await auth.locator('#auth-error').innerText(),/do not match/);
+    await auth.getByLabel('Confirm password',{exact:true}).fill('not-a-real-password');await auth.getByRole('button',{name:'Create account',exact:true}).click();assert.match(await auth.locator('#auth-error').innerText(),/not connected/);
+    await auth.getByRole('tab',{name:'Register',exact:true}).focus();await auth.keyboard.press('ArrowLeft');assert.equal(await auth.getByRole('tab',{name:'Login',exact:true}).getAttribute('aria-selected'),'true');
+    await auth.getByRole('button',{name:'Switch language',exact:true}).click();assert.equal(await auth.locator('html').getAttribute('lang'),'my');await auth.locator('[data-action=authLanguage]').click();
+    await auth.getByRole('button',{name:'Open demo warehouse',exact:true}).click();assert.ok(await auth.locator('.greeting').isVisible());assert.equal(await auth.locator('input[type=password]').count(),0);assert.deepEqual(authErrors,[]);
+    pass('Illustrated overlapping auth layout, working tabs/keyboard, validation, password visibility, localization and honest demo access');
+    await auth.goto(url+'/#signin');await auth.locator('.auth-page').waitFor();fs.mkdirSync(path.join(root,'prototype/screenshots'),{recursive:true});
+    await auth.screenshot({path:path.join(root,'prototype/screenshots/auth-mobile.png')});
+    await auth.getByRole('tab',{name:'Register',exact:true}).click();await auth.screenshot({path:path.join(root,'prototype/screenshots/auth-register.png')});
+    await auth.getByRole('tab',{name:'Login',exact:true}).click();
+    for(const width of [320,390,768,1440]){await auth.setViewportSize({width,height:1000});assert.equal(await auth.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'Auth viewport overflow '+width)}
+    await auth.screenshot({path:path.join(root,'prototype/screenshots/auth-desktop.png')});await auth.close();
     // Fresh visual contexts keep screenshots free of test products and receipts.
     const visual=await browser.newPage({viewport:{width:1440,height:1000}});await visual.goto(url);fs.mkdirSync(path.join(root,'prototype/screenshots'),{recursive:true});
     await visual.screenshot({path:path.join(root,'prototype/screenshots/desktop.png')});
     await visual.setViewportSize({width:390,height:844});await visual.screenshot({path:path.join(root,'prototype/screenshots/home.png')});
     await visual.locator('nav').getByRole('button',{name:'Scan',exact:true}).click();await visual.screenshot({path:path.join(root,'prototype/screenshots/scanner.png')});
     await visual.getByRole('button',{name:'Noodles',exact:true}).click();await visual.screenshot({path:path.join(root,'prototype/screenshots/voice.png')});
-    await visual.getByRole('button',{name:'Use sample voice phrase',exact:true}).click();await visual.getByRole('button',{name:'Confirm & continue',exact:true}).click();await visual.screenshot({path:path.join(root,'prototype/screenshots/item-details.png')});
+    await visual.locator('.voice-help summary').click();await visual.screenshot({path:path.join(root,'prototype/screenshots/voice-help.png')});await visual.getByRole('button',{name:'Use sample voice phrase',exact:true}).click();await visual.screenshot({path:path.join(root,'prototype/screenshots/voice-review.png')});await visual.getByRole('button',{name:'Correct — continue',exact:true}).click();await visual.screenshot({path:path.join(root,'prototype/screenshots/item-details.png')});
     await visual.locator('.photo-picker summary').click();await visual.screenshot({path:path.join(root,'prototype/screenshots/item-photo-options.png')});await visual.keyboard.press('Escape');
     await visual.locator('[data-field="supplier"]').scrollIntoViewIfNeeded();await visual.screenshot({path:path.join(root,'prototype/screenshots/item-details-supplier.png')});
     await visual.getByRole('button',{name:'Add new supplier',exact:true}).click();await visual.screenshot({path:path.join(root,'prototype/screenshots/new-supplier.png')});await visual.getByRole('button',{name:'Cancel',exact:true}).click();
     for(const width of [320,360,390,430,768,1440]){await visual.setViewportSize({width,height:900});assert.equal(await visual.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`Horizontal overflow at ${width}`)}
-    await visual.getByRole('button',{name:'Switch language',exact:true}).click();assert.equal(await visual.locator('html').getAttribute('lang'),'my');
-    await visual.setViewportSize({width:360,height:800});await visual.screenshot({path:path.join(root,'prototype/screenshots/burmese.png')});
+    assert.equal(await visual.locator('[data-action="language"]').count(),0);await visual.reload();await visual.locator('nav').getByRole('button',{name:'Setting',exact:true}).click();assert.equal(await visual.locator('[data-action="language"]').count(),1);await visual.locator('[data-action="language"]').click();assert.equal(await visual.locator('html').getAttribute('lang'),'my');
+    await visual.locator('nav [data-value="home"]').click();assert.equal(await visual.locator('[data-action="language"]').count(),0);await visual.setViewportSize({width:360,height:800});await visual.screenshot({path:path.join(root,'prototype/screenshots/burmese.png')});
     assert.equal(await visual.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
     await visual.close();pass('Responsive widths 320–1440, Burmese layout, and screenshots');
     assert.deepEqual(errors,[]);pass('No uncaught browser errors');

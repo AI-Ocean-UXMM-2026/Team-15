@@ -1,6 +1,6 @@
 # Invento — Product and implementation specification
 
-**Revision:** 2.0 · **Updated:** 21 October 2026 · **Platform:** Android first · **Market:** Myanmar
+**Revision:** 2.0 · **Updated:** 22 October 2026 · **Platform:** Android first · **Market:** Myanmar
 
 ## 1. Source of truth and decision precedence
 
@@ -28,7 +28,7 @@ Excluded: checkout, cart/sales, payments, invoices, POS, forecasting, cross-ware
 ### 3.1 Entry and navigation
 
 - Onboarding explains scan/voice, human review, and offline read-only access; production sign-in leads to a single warehouse.
-- Prototype starts on the home dashboard for easy evaluation. Setting → Preview onboarding provides the welcome and demo-workspace entry screens. It does not collect credentials or pretend to authenticate.
+- Prototype starts on the home dashboard for easy evaluation. Setting → Preview onboarding provides the welcome and illustrated account-entry screen. The account screen is also directly accessible at `#signin`. It offers Login/Register tabs, validation, password visibility, an entry-page language selector and the existing Open demo warehouse path. No authentication API or configured demo credentials exist; form submission explicitly reports that account access is not connected. Passwords are never sent or persisted and are cleared when leaving the screen.
 - Persistent main destinations: **Home, Inventory, Supplier, Setting**. A raised circular **Scan** button is the dominant central action.
 - Home: product count, attention count, Stock In / Stock Out / Count, add-stock shortcut, attention items, recent movements.
 - Alerts and History remain accessible from home; History, team, warehouse, language, and alert preferences are available in Setting.
@@ -37,10 +37,10 @@ Excluded: checkout, cart/sales, payments, invoices, POS, forecasting, cross-ware
 
 1. Tap central Scan. The scanner is centered in the content area; **Type manually** appears above it. The camera uses an environment-facing stream when browser support permits, otherwise typed code and explicitly labeled samples are available.
 2. Decode barcode/QR or enter a code. Look up the code within the warehouse. Existing product codes resolve to that product; unknown codes become the identity of a new draft. Preserve code strings and leading zeros. Do not assume all valid codes must be 12 digits.
-3. Show **Add item information** with a detected-code badge and a barcode/status card. Provide **Push to Talk on the same screen** as a large bottom action above **Type manually**, following the supplied two-screen reference. The user can hold to record, use the accessible tap-to-start/stop alternative, or type manually.
+3. Show **Add item information** with a detected-code badge and a barcode/status card. Provide **Push to Talk on the same screen** as a large bottom action above **Type manually**, following the supplied two-screen reference. Tap Push to Talk to start/stop recording, or type manually. A [?] disclosure contains the recording instructions, example, existing-product explanation, prototype notes and alternate hold control. It starts collapsed and supports outside-click/Escape dismissal. Language switching appears only in Setting during warehouse operations, never in operational screen headers. The later authentication reference adds an explicit exception: an entry-page language selector before account access.
 4. Cloud transcription/extraction produces an editable draft: product name, description, quantity, and unit. Do not invent FDA codes, expiry, photos, supplier, or other missing metadata.
-5. Show the original transcript and extracted fields. **Record again** returns to Push to Talk with the barcode preserved. **Edit details** opens the manual form. No stock changes here.
-6. **Confirm & continue** opens **Complete item details**. Place a compact image placeholder beside **Product information**, as in the supplied detail-form reference. Activating it offers **Take photo** (device camera capture) and **Choose from gallery**. Show product name, description, SKU, barcode, unit/quantity and low-stock threshold before supplier details; preserve the same layout for manual entry. Omit location. Preserve the scanned code and reviewed name, description and quantity. Choose an existing supplier from a dropdown, or **Add new supplier** with name, contact person, phone, email, social link/account and address. Save the supplier, return to the same draft, and preselect it. Add optional FDA code, receiving/expiry dates and remarks. **Add to receiving list** then appends the enriched draft. Repeat for additional products; the PRD demo is noodles → water → bread.
+5. Show the original transcript and extracted fields. Recording completion opens this review immediately. **Correct — continue** proceeds to item details; **Wrong — record again** returns to Push to Talk with the barcode preserved. No stock changes at either decision. **Edit details** opens the manual form. No stock changes here.
+6. **Correct — continue** opens **Complete item details**. Place a compact image placeholder beside **Product information**, as in the supplied detail-form reference. Activating it offers **Take photo** (device camera capture) and **Choose from gallery**. Show product name, description, SKU, barcode, unit/quantity and low-stock threshold before supplier details; preserve the same layout for manual entry. Omit location. Preserve the scanned code and reviewed name, description and quantity. Choose an existing supplier from a dropdown, or **Add new supplier** with name, contact person, phone, email, social link/account and address. Save the supplier, return to the same draft, and preselect it. Add optional FDA code, receiving/expiry dates and remarks. **Add to receiving list** then appends the enriched draft. Repeat for additional products; the PRD demo is noodles → water → bread.
 7. Review the list; edit/remove items, add per-item expiry dates and remarks. Existing-product quantity means **quantity received**, never an unannounced replacement of the available balance.
 8. **Save delivery** is the only inventory mutation for that receiving session. Product updates, receiving batches and movement records must commit together. Display success and links to receipts / next item / Home.
 
@@ -100,7 +100,7 @@ All commits recheck connectivity and stock version. If stock changes while revie
 | Voice | Optional browser speech recognition + labeled sample phrases; hold/tap controls | Secure backend cloud provider, English/Myanmar evaluation, consent, timeout/cost controls |
 | Stock In/Out/count, receipts, alerts | Working local state and immutable-by-UI movement records | Database audit integrity, idempotency, concurrent-user guarantees |
 | Supplier contacts and order status | Local contact creation/selection and pending/shipping order tracking | Editing/archiving, authorization and communication/integration decisions |
-| Team and sign-in | Five-member roster and onboarding presentation | Real authentication, invitations, five-member cap and role enforcement |
+| Team and sign-in | Five-member roster, onboarding and illustrated Login/Register form preview; explicit backend-unavailable feedback | Real authentication, invitations, five-member cap and role enforcement |
 | Offline | Actual connectivity event and simulation block writes/voice; loaded inventory stays readable | Account-scoped native cache, stale timestamps, reconnect synchronization, encrypted storage |
 | Persistence | Versioned localStorage, legacy data import, storage failure handling, tab conflict detection | Server authority, backups, restore and migration strategy |
 
@@ -153,3 +153,16 @@ The earlier architecture proposal is retained as a proposal: Expo + React Native
 `tests/prototype.cjs` runs browser scenarios against its own temporary local server. It exercises navigation, central Scan, top manual-entry option, detected-code Push to Talk, retry, post-confirmation item details without location, camera/gallery input, persisted resized photos, new supplier creation/selection with draft preservation, a three-item session with no early inventory writes, manual registration, persistence, duplicate/invalid input, stock-out bounds, count reason, offline confirmation, supplier state, alert preferences, tab conflict handling and responsive layouts. Screenshots are saved in `prototype/screenshots/`.
 
 Production gates are separate: browser sample voice does not validate cloud transcription; headless Chromium does not validate physical camera/microphone or TalkBack; localStorage does not validate secure multi-user stock transactions. See the test README for actual commands and remaining limitations.
+
+## 8. Authentication visual reference (22 October 2026)
+
+Preserve both defining visual elements: the original warehouse illustration and the overlapping white form panel. The local `assets/warehouse-auth.svg` is an original vector illustration with a warehouse, cartons, inventory clipboard and confirmation badge. Floating Stock in / In sync labels are illustrative, not claims of a live connection. No remote image URLs or new application dependencies are required.
+
+- Forest-green hero (#123F33), mint headline accent (#8DE0B7), white panel and teal primary action (#176F60).
+- Mobile: brand/headline → large warehouse scene → white panel with rounded top corners overlapping the hero.
+- Desktop: constrained illustrated hero and overlapping form surface; no stretched full-width fields.
+- Login/Register tabs support arrow keys and visible selected state. Form fields use semantic email/password types, autocomplete and labels; password visibility is controlled explicitly.
+- Register includes name, email, password and confirmation. These are prototype fields pending the actual account contract; they are not a new backend schema.
+- Form validation covers name, email, minimum password length and confirmation. A valid submission clearly states that account access is not connected, rather than simulating a successful login or account creation. No invented credentials, network requests or password persistence.
+- The demo panel uses the existing password-free demo-workspace entry. Privacy copy describes local browser storage and does not claim production warehouse isolation.
+- Authentication/tenant isolation, real loading/error/success responses and an agreed registration API remain the next integration step.
