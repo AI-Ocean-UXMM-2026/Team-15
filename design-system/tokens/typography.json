@@ -1,0 +1,21 @@
+{
+  "source": "Invento provisional",
+  "englishFamilies": [
+    "Inter",
+    "Segoe UI",
+    "Roboto",
+    "Arial",
+    "sans-serif"
+  ],
+  "myanmarFamilies": [
+    "Noto Sans Myanmar",
+    "Myanmar Text",
+    "sans-serif"
+  ],
+  "bodySp": 14,
+  "headingSp": 24,
+  "labelSp": 12,
+  "myanmarLineHeight": "normal",
+  "myanmarLetterSpacing": "normal",
+  "productionAcceptance": "Real Android devices, 200% text scale, TalkBack and native-speaker review"
+}

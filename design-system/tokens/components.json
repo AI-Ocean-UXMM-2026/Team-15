@@ -1,0 +1,11 @@
+{
+  "source": "Invento provisional",
+  "buttonHeightDp": 50,
+  "touchTargetMinDp": 48,
+  "cardRadiusDp": 15,
+  "inputRadiusDp": 10,
+  "inputHeightDp": 50,
+  "scanButtonDiameterDp": 58,
+  "iconViewBox": "0 0 24 24",
+  "iconStrokeWidth": 1.65
+}

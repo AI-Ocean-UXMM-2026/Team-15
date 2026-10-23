@@ -70,3 +70,59 @@ vercel deploy --prod
 - Local MongoDB has no authentication and only listens on 127.0.0.1.
 - With `SEED_DEMO=true` the public demo password is known — turn it off before real data.
 - No rate limiting or refresh-token rotation yet.
+
+---
+
+## Design prototype (static HTML)
+
+An interactive Android-first inventory prototype for one warehouse and a five-person team. Scan a product, speak its details, review the receiving list, and save a traceable delivery.
+
+### Try it
+
+Open `index.html` in a modern browser, or serve this directory:
+
+```sh
+python -m http.server 8000 --bind 127.0.0.1
+```
+
+For the illustrated account-entry screen, append `#signin` to the page URL. Login/Register tabs and validation work; real account access is explicitly unconnected. Use Open demo warehouse to explore without credentials.
+
+No installation or build step is required. QR labels use a locally vendored MIT-licensed encoder; see `assets/vendor/README.md`. On small screens the app fills the viewport; desktop shows a phone preview and workflow notes.
+
+Start with the central **Scan** button. **Type manually** is at the top of the scanner. Choose a sample product to see its barcode and Push to Talk on the same screen. Open [?] for guidance or the sample voice phrase. Recording opens a review immediately: choose Correct — continue or Wrong — record again. The next screen adds a product photo (camera or gallery), supplier and extra details without a location field. Select a supplier or add one with name, contact person, phone, email, social account and address. Then add the item to the receiving list. Add noodles, water and bread, then **Save delivery**. Stock changes only at that final save.
+
+Also try manual registration, Stock In, Stock Out, Count, Supplier orders, alert preferences and History. Setting contains language switching, an offline simulation, a five-member team preview and onboarding. Actual browser offline events also block stock writes.
+
+### Project structure
+
+- `index.html` — application and desktop presentation shell
+- `assets/app.js` — screen rendering, interaction, camera/voice adapters and local state
+- `assets/styles.css` — responsive components and layout
+- `locales/en.json`, `locales/my.json` — English and draft Myanmar strings
+- `assets/locales.js` — generated locale bundle for direct file opening
+- `design-system/tokens/` — provisional tokens; official Figma exports remain unverified
+- `SPEC.md` — PRD reconciliation, screen contracts and implementation roadmap
+- `references/INVENTO-PRD-v1.1.*` — current requirements
+- `user-flows/Crabbty Crab.png` — original registration/dispatch flow
+- `tests/prototype.cjs` — browser interaction checks
+- `prototype/screenshots/` — captured home, scanner, voice, desktop and Myanmar views
+
+### Test
+
+Install Playwright in your development environment and its Chromium browser, then run:
+
+```sh
+node tests/prototype.cjs
+```
+
+The suite also supports a system browser using `CHROMIUM_PATH=/path/to/chromium`. See [test instructions](tests/README.md). Regenerate the locale bundle after editing JSON with `node scripts/build-locales.cjs`.
+
+### Current boundaries
+
+This is a working local UI prototype, not a production Android application. Data stays in browser storage. Browser camera scanning requires `BarcodeDetector` and a secure context; typed/sample codes are always available. Optional browser speech recognition is not the planned cloud voice service. The three sample phrases are explicitly demo inputs. The illustrated Login/Register forms provide local validation but do not send or store credentials; account submission reports the missing backend. The five-person roster is a presentation, not authorization. Supplier status updates do not send messages.
+
+The supplied [Figma file](https://www.figma.com/design/V6w22Z09deAA1CbQCSuJjv/Stock-Management-System?node-id=1206-71) could not be retrieved through this environment's network proxy. Tokens and local SVGs are provisional, not verified Anydesignstyem/Reicon assets. Myanmar strings require completion and native-speaker review.
+
+Existing prototype data is imported from legacy keys when available. The new store is `invento-v3`; legacy keys remain intact. Clear that key in browser developer tools to start with fresh sample data.
+
+Product details has right-aligned Edit product / QR label / Archive chips. Editing changes metadata only; QR labels use the real product code; confirmed archival hides the product from active lists while preserving stock and history.
